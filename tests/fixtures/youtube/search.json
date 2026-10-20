@@ -1,0 +1,75 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "videos": [
+    {
+      "type": "short",
+      "id": "uMNvF-lSCHg",
+      "url": "https://www.youtube.com/watch?v=uMNvF-lSCHg",
+      "title": "LONG RUN ROUTINE #run #runvlog #runner #shorts #morning",
+      "thumbnail": "https://i.ytimg.com/vi/uMNvF-lSCHg/hq720.jpg",
+      "channel": {
+        "id": "UCGRdcRxpJWi5Q2oDCrMDUuQ",
+        "title": "Run Demo",
+        "handle": "run.demo",
+        "thumbnail": "https://yt3.ggpht.com/example-avatar-1=s68-c-k-c0x00ffffff-no-rj"
+      },
+      "viewCountText": "462,705 views",
+      "viewCountInt": 462705,
+      "likeCountInt": 21000,
+      "commentCountInt": 310,
+      "publishedTimeText": "10 months ago",
+      "publishedTime": "2024-07-28T17:08:46.498Z",
+      "lengthText": "0:44",
+      "lengthSeconds": 44,
+      "badges": []
+    }
+  ],
+  "channels": [],
+  "playlists": [],
+  "shorts": [
+    {
+      "type": "short",
+      "id": "Q1w2e3r4t5y",
+      "url": "https://www.youtube.com/watch?v=Q1w2e3r4t5y",
+      "title": "Couch to 5K in 30 seconds",
+      "thumbnail": "https://i.ytimg.com/vi/Q1w2e3r4t5y/hq720.jpg",
+      "channel": {
+        "id": "UCNoHandle0000000000000",
+        "title": "No Handle Channel",
+        "handle": "channel/UCNoHandle0000000000000"
+      },
+      "viewCountText": "1.2M views",
+      "publishedTime": "2025-05-14T17:08:46.499Z",
+      "lengthSeconds": 30,
+      "badges": []
+    }
+  ],
+  "shelves": [
+    {
+      "type": "shelf",
+      "title": "Shorts",
+      "items": [
+        {
+          "type": "short",
+          "id": "LLBR5nO05tE",
+          "url": "https://www.youtube.com/watch?v=LLBR5nO05tE",
+          "title": "running through walls gone wrong",
+          "thumbnail": "https://i.ytimg.com/vi/LLBR5nO05tE/oardefault.jpg",
+          "viewCountText": "750K",
+          "viewCountInt": 750000
+        },
+        {
+          "type": "short",
+          "id": "uMNvF-lSCHg",
+          "url": "https://www.youtube.com/watch?v=uMNvF-lSCHg",
+          "title": "LONG RUN ROUTINE (shelf duplicate)",
+          "viewCountInt": 462705
+        }
+      ]
+    }
+  ],
+  "lives": [],
+  "continuationToken": "EooDEg-example-token"
+}

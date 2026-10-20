@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "aweme_list": [
+    {
+      "aweme_id": "6862153058223197445",
+      "desc": "To the bees #fyp",
+      "create_time": 1597719521,
+      "author": {
+        "nickname": "Hashtag Star",
+        "unique_id": "hashtag.star",
+        "avatar_thumb": { "url_list": ["https://p16-useast2a.tiktokcdn.com/example-avatar.webp"] }
+      },
+      "statistics": {
+        "aweme_id": "6862153058223197445",
+        "collect_count": 4220877,
+        "comment_count": 2901351,
+        "digg_count": 68933772,
+        "play_count": 852942803,
+        "share_count": 42457977
+      },
+      "video": {
+        "cover": { "url_list": ["https://p16-sign-va.tiktokcdn.com/example-hashtag-cover.jpeg"] },
+        "duration": 10703
+      },
+      "share_url": "https://www.tiktok.com/@hashtag.star/video/6862153058223197445?_r=1&u_code=ed9f&source=h5_m"
+    },
+    {
+      "aweme_id": "6862153058223197445",
+      "desc": "To the bees #fyp",
+      "author": { "unique_id": "hashtag.star" },
+      "statistics": { "play_count": 852942803 },
+      "share_url": "https://www.tiktok.com/@hashtag.star/video/6862153058223197445?_r=1"
+    },
+    {
+      "aweme_id": "7012345678901234567",
+      "desc": "fyp dance challenge",
+      "create_time": 1633000000,
+      "author": { "nickname": "Dance Demo", "unique_id": "dance.demo" },
+      "statistics": { "comment_count": 50, "digg_count": 900, "play_count": 12000, "share_count": 3 },
+      "video": { "dynamic_cover": { "url_list": ["https://p16-sign-va.tiktokcdn.com/example-dynamic.webp"] }, "duration": 9000 }
+    }
+  ],
+  "cursor": 12,
+  "has_more": 1,
+  "status_code": 0,
+  "status_msg": ""
+}

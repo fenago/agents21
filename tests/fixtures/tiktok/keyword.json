@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "cursor": 12,
+  "search_item_list": [
+    {
+      "aweme_info": {
+        "aweme_id": "7545933721589910798",
+        "desc": "Chiefs fans, this one is for you #nfl #chiefs",
+        "create_time": 1756924658,
+        "author": {
+          "nickname": "Brant Takes",
+          "unique_id": "branttakes",
+          "avatar_thumb": { "url_list": ["https://p16-amd-va.tiktokcdn.com/example-avatar.jpeg"] }
+        },
+        "statistics": {
+          "aweme_id": "7545933721589910798",
+          "collect_count": 1200,
+          "comment_count": 431,
+          "digg_count": 15800,
+          "play_count": 402311,
+          "share_count": 512
+        },
+        "video": {
+          "cover": { "url_list": ["https://p16-sign-va.tiktokcdn.com/example-cover-1.jpeg"] },
+          "origin_cover": { "url_list": ["https://p16-sign-va.tiktokcdn.com/example-origin-1.jpeg"] },
+          "duration": 83851
+        },
+        "create_time_utc": "2025-09-03T18:37:38.000Z",
+        "url": "https://www.tiktok.com/@branttakes/video/7545933721589910798"
+      },
+      "search_aweme_info": {}
+    },
+    {
+      "aweme_info": {
+        "aweme_id": "7546000000000000001",
+        "desc": "Arrowhead tailgate tour",
+        "create_time": 1757000000,
+        "author": { "nickname": "Tailgate Tours", "unique_id": "tailgate.tours" },
+        "statistics": { "comment_count": 88, "digg_count": 2400, "play_count": 51000, "share_count": 40 },
+        "video": {
+          "origin_cover": { "url_list": ["https://p16-sign-va.tiktokcdn.com/example-origin-2.jpeg"] },
+          "duration": 45000
+        }
+      }
+    },
+    {
+      "aweme_info": {
+        "aweme_id": "7545933721589910798",
+        "desc": "Chiefs fans, this one is for you #nfl #chiefs",
+        "author": { "unique_id": "branttakes" },
+        "statistics": { "play_count": 402311 },
+        "url": "https://www.tiktok.com/@branttakes/video/7545933721589910798"
+      }
+    }
+  ]
+}

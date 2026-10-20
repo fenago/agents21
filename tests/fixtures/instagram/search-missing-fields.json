@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "credits_remaining": 100,
+  "credits_charged": 1,
+  "reels": [
+    {
+      "code": "DAbCdEfGhIj",
+      "caption": { "text": "caption as object, url built from code" },
+      "taken_at": 1757100000,
+      "image_versions2": { "candidates": [{ "url": "https://scontent.cdninstagram.com/example-candidate.jpg" }] },
+      "like_count": "1,024",
+      "comment_count": null,
+      "ig_play_count": "45000"
+    },
+    {
+      "id": "3800000000000000001",
+      "url": "https://www.instagram.com/reel/DXyZ0000001/"
+    },
+    {
+      "caption": "no id and no shortcode, must be skipped",
+      "like_count": 5
+    },
+    {
+      "id": "3800000000000000002",
+      "caption": "id but no url or shortcode, must be skipped"
+    }
+  ]
+}

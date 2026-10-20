@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "credits_remaining": 99,
+  "credits_charged": 1,
+  "reels": [
+    {
+      "id": "4000819054877393649",
+      "pk": "4000819054877393649",
+      "shortcode": "DeFw7uwlMLx",
+      "url": "https://www.instagram.com/reel/DeFw7uwlMLx/",
+      "caption": "Impatiently waiting for #UFC335...\n\nThe countdown is on",
+      "taken_at": "2026-10-04T23:00:03.000Z",
+      "media_type": 2,
+      "product_type": "clips",
+      "video_url": "https://scontent.cdninstagram.com/example.mp4",
+      "image_url": "https://scontent.cdninstagram.com/example.jpg",
+      "image_versions2": {
+        "candidates": [{ "url": "https://scontent.cdninstagram.com/example-candidate.jpg", "height": 1920, "width": 1080 }]
+      },
+      "has_audio": true,
+      "like_count": 423127,
+      "comment_count": 1623,
+      "play_count": 5112349,
+      "ig_play_count": null,
+      "user": {
+        "id": "17841401450200356",
+        "pk": "22832340",
+        "username": "ufc",
+        "full_name": "UFC",
+        "profile_pic_url": "https://scontent.cdninstagram.com/example-avatar.jpg",
+        "is_verified": true,
+        "is_private": false
+      }
+    },
+    {
+      "id": "4000900000000000001",
+      "pk": "4000900000000000001",
+      "shortcode": "DeGa1bcdEFg",
+      "url": "https://www.instagram.com/reel/DeGa1bcdEFg/",
+      "caption": "Five-minute pasta you will make every week",
+      "taken_at": "2026-10-05T12:00:00.000Z",
+      "product_type": "clips",
+      "image_versions2": {
+        "candidates": [{ "url": "https://scontent.cdninstagram.com/example-pasta.jpg", "height": 1920, "width": 1080 }]
+      },
+      "like_count": 88000,
+      "comment_count": 940,
+      "play_count": null,
+      "ig_play_count": 2100000,
+      "user": {
+        "username": "pasta.demo",
+        "full_name": "Pasta Demo",
+        "profile_pic_url": "https://scontent.cdninstagram.com/example-avatar-2.jpg"
+      }
+    }
+  ]
+}

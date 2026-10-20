@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "credits_remaining": 33929349,
+  "credits_charged": 1,
+  "reels": [
+    {
+      "id": "3723045213787686915",
+      "__typename": "XDTGraphVideo",
+      "shortcode": "DOq6eV6iIgD",
+      "url": "https://www.instagram.com/reel/DOq6eV6iIgD/",
+      "caption": "Dogs are family",
+      "thumbnail_src": "https://scontent-sjc3-1.cdninstagram.com/example-thumb-1.jpg",
+      "display_url": "https://scontent-sjc3-1.cdninstagram.com/example-display-1.jpg",
+      "video_url": "https://scontent-sjc3-1.cdninstagram.com/example-1.mp4",
+      "has_audio": false,
+      "product_type": "clips",
+      "video_duration": 75.7,
+      "is_video": true,
+      "owner": {
+        "id": "70127159370",
+        "username": "dog.photo.demo",
+        "is_verified": true,
+        "profile_pic_url": "https://scontent-sjc3-1.cdninstagram.com/example-avatar-1.jpg",
+        "full_name": "Dog Photographer",
+        "is_private": false
+      },
+      "taken_at": "2025-09-16T16:56:45.000Z",
+      "is_ad": false,
+      "like_count": 3487,
+      "comment_count": 90,
+      "comments": []
+    },
+    {
+      "id": "3799150343414200124",
+      "__typename": "XDTGraphVideo",
+      "shortcode": "DS5SxvLgbc8",
+      "url": "https://www.instagram.com/reel/DS5SxvLgbc8/",
+      "caption": "DOGS AND POLITICS",
+      "thumbnail_src": "https://instagram.fjau2-1.fna.fbcdn.net/example-thumb-2.jpg",
+      "video_duration": 77.166,
+      "is_video": true,
+      "owner": {
+        "id": "1234567",
+        "username": "politics.dogs.demo",
+        "full_name": "Politics Dogs",
+        "profile_pic_url": "https://instagram.fjau2-1.fna.fbcdn.net/example-avatar-2.jpg"
+      },
+      "taken_at": "2025-12-30T17:00:00.000Z",
+      "like_count": 268,
+      "comment_count": 17,
+      "video_view_count": 15300
+    },
+    {
+      "id": "3723045213787686915",
+      "shortcode": "DOq6eV6iIgD",
+      "url": "https://www.instagram.com/reel/DOq6eV6iIgD/",
+      "caption": "Dogs are family (duplicate row)",
+      "owner": { "username": "dog.photo.demo" }
+    }
+  ]
+}

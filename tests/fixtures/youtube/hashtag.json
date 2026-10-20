@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "videos": [
+    {
+      "type": "video",
+      "id": "jXMISgQq9MM",
+      "url": "https://www.youtube.com/watch?v=jXMISgQq9MM",
+      "title": "Epic fails #shorts #funny #fails",
+      "description": "",
+      "thumbnail": "https://i.ytimg.com/vi/jXMISgQq9MM/hqdefault.jpg",
+      "channel": {
+        "id": "UCvUzWu1Whyw1FWuLl9GOo_g",
+        "title": "Funny Demo",
+        "thumbnail": "https://yt3.ggpht.com/example-avatar=s68-c-k-c0x00ffffff-no-rj"
+      },
+      "viewCountText": "22,668,056 views",
+      "viewCountInt": 22668056,
+      "publishedTimeText": "4 weeks ago",
+      "publishedTime": "2025-01-04T23:12:42.919Z",
+      "lengthText": "1:00",
+      "lengthSeconds": 60,
+      "badges": []
+    },
+    {
+      "type": "video",
+      "id": "aBcDeFgHiJk",
+      "url": "https://www.youtube.com/watch?v=aBcDeFgHiJk",
+      "title": "Try not to laugh #funny",
+      "thumbnail": "https://i.ytimg.com/vi/aBcDeFgHiJk/hqdefault.jpg",
+      "channel": { "id": "UCfunny0000000000000000", "title": "Laugh Lab", "handle": "laughlab" },
+      "viewCountText": "1,204 views",
+      "viewCountInt": 1204,
+      "publishedTime": "2025-01-20T10:00:00.000Z",
+      "lengthSeconds": 42
+    }
+  ],
+  "continuationToken": "4qmFsgLtBRIJRkVoYX-example"
+}

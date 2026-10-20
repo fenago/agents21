@@ -97,15 +97,17 @@ v1 is a **private tool** for the owner and their team, protected by a shared acc
 |---|---|---|
 | TikTok trending | `GET /v1/tiktok/get-trending-feed` | `region` (req, e.g. `US`), `trim` |
 | TikTok keyword search | `GET /v1/tiktok/search/keyword` | `query` (req), `date_posted` (`yesterday`, `this-week`, `this-month`, `last-3-months`, `last-6-months`, `all-time`), `sort_by` (`relevance`, `most-liked`, `date-posted`), `region`, `cursor`, `trim` |
-| TikTok hashtag search | `GET /v1/tiktok/search/hashtag` | `hashtag`, `cursor` |
+| TikTok hashtag search | `GET /v1/tiktok/search/hashtag` | `hashtag` (req, without `#`), `region`, `cursor` (number), `trim`. No date filter |
 | Instagram trending | `GET /v1/instagram/reels/trending` | none. Returns popular reels from the last 7 days |
 | Instagram search | `GET /v2/instagram/reels/search` | `query` (req), `date_posted` (`last-week`, `last-month`, `last-year`), `page` (1–11) |
 | YouTube trending | `GET /v1/youtube/shorts/trending` | none. Returns about 48 shorts per call, different on each call |
 | YouTube search | `GET /v1/youtube/search` | `query` (req), `uploadDate` (`today`, `this_week`, `this_month`, `this_year`), `sortBy` (`relevance`, `popular`), `type` (`videos`, `shorts`), `region`, `continuationToken`, `includeExtras` |
-| YouTube hashtag | `GET /v1/youtube/search/hashtag` | `hashtag`, `continuationToken` |
+| YouTube hashtag | `GET /v1/youtube/search/hashtag` | `hashtag` (req), `continuationToken`, `type` (`all`, `shorts`). No date filter, no `includeExtras` |
 | Credits | `GET /v1/account/credit-balance` | none |
 
-> The exact hashtag-endpoint parameter names must be confirmed against the live docs during the build.
+> Hashtag parameters confirmed against the live docs on 2026-10-20. Hashtag endpoints accept no date filter, so the time window is ignored for `#tag` searches. Instagram has no hashtag-reels endpoint in v1 scope; `#tag` is searched as plain text.
+>
+> Adapter choices (M2): YouTube search and hashtag send `type=shorts` (short-form product; `videos` mixes in long-form uploads). YouTube keyword search sends `includeExtras=true` because likes and comments are otherwise missing; still 1 credit, slightly slower per the docs. TikTok calls do not send `trim` (the trimmed shape is undocumented and can drop `video.cover`). Instagram `page` is returned as the next cursor until page 11.
 
 **Time-window mapping**
 
@@ -168,7 +170,7 @@ Each function returns `{ videos: Video[], cursors: {...}, errors: { platform: me
 
 ### 7.3 Caching & cost control
 - Cache key: endpoint plus normalized params. **TTL: 15 minutes for trending, 30 minutes for search.**
-- Upstream timeout is 20 seconds per platform call. Each call is retried once on `500`. `402` (out of credits) is shown in the UI as a clear "out of credits" message.
+- Each upstream call has one 8-second deadline, retry included, so it fits Netlify's 10s function limit. Network errors and `5xx` responses are retried once if time remains; `4xx` responses and timeouts are never retried. `402` (out of credits) is shown in the UI as a clear "out of credits" message.
 - Rough cost per action: a trending load costs 3 credits; a 3-platform search costs 3 credits, plus 1 per platform for each "Load more".
 
 ### 7.4 Security
@@ -197,7 +199,7 @@ Each function returns `{ videos: Video[], cursors: {...}, errors: { platform: me
 
 ## 10. Deployment
 
-1. Develop on a feature branch and merge into `main`.
+1. Each milestone is developed on a working branch, checked by QA, and pushed to `main` as soon as it passes.
 2. Connect the repo in Netlify. Build command `npm run build`, publish directory `dist`, functions directory `netlify/functions`.
 3. Set the env vars `SCRAPECREATORS_API_KEY` and `APP_PASSWORD` in the Netlify UI.
 4. Every push to `main` deploys to production. Pull requests get preview deploys.
@@ -221,7 +223,7 @@ Each function returns `{ videos: Video[], cursors: {...}, errors: { platform: me
 | M3 | Functions | `trending`, `search`, `credits` with cache, timeouts and partial failures |
 | M4 | UI | Trending grid, search, filters, sort, load-more, CSV, URL state |
 | M5 | Hardening | Password gate, input validation, error states, a11y pass |
-| M6 | Ship | Merged to `main`, Netlify deploy live, README with setup steps |
+| M6 | Ship | Netlify deploy live from `main`, README with setup steps |
 
 ## 13. Risks
 
@@ -231,7 +233,7 @@ Each function returns `{ videos: Video[], cursors: {...}, errors: { platform: me
 | Duplicate/irrelevant results (TikTok note in docs) | De-dupe by ID; relevance-first default sort |
 | Credit burn from public exposure | Password gate + cache + credit indicator |
 | Thumbnail hotlink blocking | Image-proxy function fallback |
-| Function timeout (Netlify default 10s sync) | 20s upstream timeout needs a higher function timeout, or parallel calls with an 8s per-platform cap. Decide during M3 |
+| Function timeout (Netlify default 10s sync) | **Decided in M2:** platform calls run in parallel, each with an 8s deadline (retry included) |
 
 ## 14. Open questions
 
@@ -241,4 +243,4 @@ Each function returns `{ videos: Video[], cursors: {...}, errors: { platform: me
 | O2 | Default region? | `US` |
 | O3 | Proxy thumbnails or hotlink them? | Hotlink first, add a proxy if broken |
 | O4 | Brand name / visual identity? | "TrendScout", neutral design |
-| O5 | Branch strategy? | Feature branch, then merge to `main` |
+| O5 | Branch strategy? | **Decided:** push each milestone to `main` when it passes QA |

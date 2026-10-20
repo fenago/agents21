@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "cursor": 24,
+  "has_more": 0,
+  "search_item_list": [
+    {
+      "aweme_info": {
+        "aweme_id": "7547000000000000001",
+        "author": { "unique_id": "bare.minimum" }
+      }
+    },
+    {
+      "aweme_info": {
+        "desc": "no id on this one, must be skipped",
+        "url": "https://www.tiktok.com/@someone/video/0"
+      }
+    },
+    {
+      "aweme_info": {
+        "aweme_id": "7547000000000000002",
+        "desc": "no author handle and no url, must be skipped"
+      }
+    },
+    {
+      "aweme_info": {
+        "aweme_id": 754700003,
+        "desc": "renamed/stringly-typed fields",
+        "createTime": "1757100000",
+        "author": { "uniqueId": "camel.case", "nickname": null },
+        "stats": { "playCount": "12,345", "diggCount": "678", "commentCount": null, "shareCount": "n/a" },
+        "video": { "cover": { "url_list": [] } }
+      }
+    }
+  ]
+}

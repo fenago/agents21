@@ -1,0 +1,89 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "aweme_list": [
+    {
+      "aweme_id": "7540000301621841183",
+      "desc": "#hudsonvalley #fallgetaway #farm #upstateny #resort ",
+      "desc_language": "un",
+      "region": "US",
+      "statistics": {
+        "aweme_id": "7540000301621841183",
+        "comment_count": 646,
+        "digg_count": 71423,
+        "play_count": 1443873,
+        "share_count": 8440
+      },
+      "video": {
+        "cover": {
+          "uri": "tos-useast8-i-photomode-tx2/example",
+          "url_list": ["https://p19-pu-sign-useast8.tiktokcdn-us.com/example-photo-cover.webp"]
+        }
+      },
+      "image_post_info": {
+        "images": [{ "display_image": { "url_list": ["https://p19-pu-sign-useast8.tiktokcdn-us.com/example-photo.webp"] } }],
+        "title": "The most perfect fall getaway for the day or the night!"
+      },
+      "author": {
+        "nickname": "Photo Creator",
+        "region": "US"
+      },
+      "create_time": 1755543133,
+      "is_ad": false,
+      "create_time_utc": "2025-08-18T18:52:13.000Z",
+      "url": "https://www.tiktok.com/@photo.creator/photo/7540000301621841183"
+    },
+    {
+      "aweme_id": "7540968798585670968",
+      "desc": "Thrilling 3D motorcycle chases in the city. Evade cops at top speed!",
+      "desc_language": "en",
+      "region": "VN",
+      "statistics": {
+        "aweme_id": "7540968798585670968",
+        "comment_count": 27,
+        "digg_count": 6035,
+        "play_count": 589406,
+        "share_count": 192
+      },
+      "video": {
+        "play_addr": {
+          "uri": "v14033g50000d2jed4vog65sp3hesl60",
+          "url_list": ["https://v16m.tiktokcdn-us.com/example/video.mp4"]
+        },
+        "duration": 15200
+      },
+      "author": {
+        "nickname": "Moto Games",
+        "unique_id": "moto.games.demo",
+        "region": "VN",
+        "avatar_thumb": { "url_list": ["https://p16-sign.tiktokcdn-us.com/example-avatar.jpeg"] }
+      },
+      "create_time": 1755768714,
+      "is_ad": false,
+      "create_time_utc": "2025-08-21T09:31:54.000Z",
+      "url": "https://www.tiktok.com/@moto.games.demo/video/7540968798585670968"
+    },
+    {
+      "aweme_id": "7541111111111111111",
+      "desc": "Morning routine that actually works #fyp",
+      "statistics": {
+        "comment_count": 1200,
+        "digg_count": 250000,
+        "play_count": 3100000,
+        "share_count": 9100
+      },
+      "video": {
+        "cover": { "url_list": ["https://p16-sign.tiktokcdn-us.com/example-cover-3.jpeg"] },
+        "duration": 31000
+      },
+      "author": {
+        "nickname": "Routine Lab",
+        "unique_id": "routinelab",
+        "avatar_medium": { "url_list": ["https://p16-sign.tiktokcdn-us.com/example-avatar-3.jpeg"] }
+      },
+      "create_time": 1755800000,
+      "share_url": "https://www.tiktok.com/@routinelab/video/7541111111111111111?_r=1&u_code=abc&source=h5_m"
+    }
+  ]
+}

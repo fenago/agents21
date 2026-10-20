@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "credits_remaining": 1000000,
+  "credits_charged": 1,
+  "videos": [
+    { "type": "video", "id": "bareVideo01" },
+    { "type": "channel", "id": "UCchannelRow", "title": "A channel row, must be skipped" },
+    { "type": "video", "title": "no id, must be skipped", "url": "https://www.youtube.com/watch?v=" },
+    {
+      "type": "short",
+      "id": "renamed0001",
+      "title": "renamed fields",
+      "thumbnails": [{ "url": "https://i.ytimg.com/vi/renamed0001/default.jpg" }],
+      "channel": { "name": "Renamed Channel" },
+      "viewCount": "5,000",
+      "likeCount": null,
+      "uploadDate": "not a date"
+    }
+  ],
+  "shorts": null,
+  "continuationToken": ""
+}
