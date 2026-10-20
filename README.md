@@ -3,6 +3,7 @@
 Search trending videos across **TikTok, Instagram and YouTube**, powered by the [Scrape Creators API](https://docs.scrapecreators.com) and hosted on **Netlify**.
 
 - Product spec: [`docs/PRD.md`](docs/PRD.md)
+- Deploy guide: [`docs/DEPLOY.md`](docs/DEPLOY.md)
 - Build agents: [`.claude/agents/`](.claude/agents)
 
 ## How it deploys
@@ -15,12 +16,13 @@ You never upload anything to Netlify by hand. Netlify builds the React site and 
 
 ### One-time Netlify setup
 
-1. In Netlify: **Add new project → Import an existing project → GitHub**, then pick `fenago/agents21`.
-2. Production branch: `main`. Leave the build settings alone; they come from `netlify.toml`.
-3. **Project configuration → Environment variables**: add
-   - `SCRAPECREATORS_API_KEY`: your Scrape Creators key (**never commit it**)
-   - `APP_PASSWORD`: optional shared password for the app. Use a long random ASCII value; leaving it empty (or only spaces) turns the gate off
-4. Deploy. Open `/api/health` on the live site to confirm the key is configured.
+Follow **[`docs/DEPLOY.md`](docs/DEPLOY.md)**. In short: **Add new project → Import an existing project → GitHub → `fenago/agents21`**, branch `main`, keep the build settings from `netlify.toml`, then set the env vars `SCRAPECREATORS_API_KEY` (**never commit it**) and `APP_PASSWORD` (long random ASCII) and deploy. After that, open `/api/health` and run the smoke test:
+
+```bash
+TRENDSCOUT_PASSWORD='<APP_PASSWORD>' npm run smoke -- https://<site>.netlify.app   # spends ~3–7 credits
+```
+
+The same doc covers troubleshooting and rotating the API key.
 
 `netlify.toml` also sets the security headers: a strict Content-Security-Policy (same-origin scripts, styles and API calls; images from any `https:` host because thumbnails come from many platform CDNs), `Permissions-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`. If you add a third-party script, font or API call, update the CSP there (see PRD §7.4).
 
@@ -80,6 +82,7 @@ All endpoints are `GET` only (anything else returns `405`) and live under `/api/
 | `npm test` | Vitest unit tests |
 | `npm run build` | Production build to `dist/` |
 | `npm run check` | All of the above |
+| `npm run smoke -- <url>` | Post-deploy smoke test of a live site ([`scripts/smoke.mjs`](scripts/smoke.mjs), see `docs/DEPLOY.md`) |
 
 ## Layout
 
@@ -90,4 +93,6 @@ netlify/functions/   Server-side API (/api/*), the only place the API key is use
   lib/               Shared code (adapters, cache, validation, password gate); never deployed as a function
 tests/               Vitest tests
 docs/PRD.md          Product requirements
+docs/DEPLOY.md       Netlify setup, verification checklist, troubleshooting
+scripts/smoke.mjs    Post-deploy smoke test (no dependencies)
 ```

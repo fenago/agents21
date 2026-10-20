@@ -157,7 +157,7 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 - **Frontend:** Vite + React + TypeScript, styled with Tailwind CSS. Static build output to `dist/`.
 - **Backend:** Netlify Functions (TypeScript, Node 22), served under `/api/*` via the redirect in `netlify.toml`. Functions do not set `config.path`; the file name is the route (`netlify/functions/search.ts` → `/api/search`).
 - **Cache:** Netlify Blobs (key/value storage).
-- **Tests:** Vitest for adapters and normalizers, using recorded JSON fixtures. Playwright smoke test of the UI against mocked functions.
+- **Tests:** Vitest for adapters and normalizers (recorded JSON fixtures), functions (mocked adapters) and frontend logic. The UI was checked in Chromium with an axe pass against mocked functions (M5); there is no Playwright suite in v1. `scripts/smoke.mjs` smoke-tests a live deploy (M6).
 
 ### 7.2 Functions
 | Function | Purpose |
@@ -165,6 +165,7 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 | `trending` | Calls each platform's trending endpoint in parallel, normalizes, merges |
 | `search` | Calls each platform's search (or hashtag) endpoint in parallel, normalizes, merges, returns per-platform cursors |
 | `credits` | Returns the credit balance |
+| `health` | Public liveness check: `{ ok, apiKeyConfigured, passwordGate }` booleans, no upstream call (§7.4) |
 
 `trending` and `search` return `{ videos: Video[], cursors: {...}, errors: { platform, code?, message }[] }`. `code` is a machine-readable reason (e.g. `out_of_credits`, `rate_limited`, `timeout`, `upstream`) and `message` is a fixed, user-safe string. A failure on one platform never fails the whole request.
 
@@ -204,9 +205,10 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 ## 10. Deployment
 
 1. Each milestone is developed on a working branch, checked by QA, and pushed to `main` as soon as it passes.
-2. Connect the repo in Netlify. Build command `npm run build`, publish directory `dist`, functions directory `netlify/functions`.
-3. Set the env vars `SCRAPECREATORS_API_KEY` and `APP_PASSWORD` in the Netlify UI.
+2. Connect the repo in Netlify. The build settings come from `netlify.toml`: build command `npm run build`, publish directory `dist`, functions directory `netlify/functions`, Node 22.
+3. Set the env vars `SCRAPECREATORS_API_KEY` and `APP_PASSWORD` in the Netlify UI. A change takes effect only after a redeploy.
 4. Every push to `main` deploys to production. Pull requests get preview deploys.
+5. Verify with `/api/health` and `npm run smoke -- <site URL>`. The owner's step-by-step guide, troubleshooting and key rotation are in [`docs/DEPLOY.md`](DEPLOY.md).
 
 ## 11. Roadmap
 
@@ -227,7 +229,7 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 | M3 | Functions | `trending`, `search`, `credits` with cache, timeouts and partial failures | Done |
 | M4 | UI | Trending grid, search, filters, sort, load-more, CSV, URL state | Done |
 | M5 | Hardening | Password gate, input validation, error states, a11y pass | Done. CSP and security headers, `429` → `rate_limited`, 2-minute TTL for empty first pages, 300 ms delay on a wrong password, `/api/health` public (booleans only), password charset guard, client-side https checks, axe pass with zero violations. |
-| M6 | Ship | Netlify deploy live from `main`, README with setup steps | Not started |
+| M6 | Ship | Netlify deploy live from `main`, README with setup steps | **Ready to deploy — awaiting Netlify connection by owner.** Verified locally: `netlify build --offline` (netlify-cli 27.14 / @netlify/build 37.5) runs `npm run build` and bundles exactly `credits`, `health`, `search` and `trending` (`lib/` is inlined, not a function; `@netlify/blobs` is packaged). The bundled zips load and answer correctly in Node. `netlify serve --offline` serves `/api/health` (200), `/api/trending`, `/api/search` and `/api/credits` (500 `server_not_configured` with no key, 400 on a bad `q`), the SPA fallback, and every `netlify.toml` security header. Added `docs/DEPLOY.md` and `scripts/smoke.mjs` (`npm run smoke`). Still to do on the live site: the smoke test plus the first-live-call field checks (DEPLOY.md §3). |
 
 ## 13. Risks
 
