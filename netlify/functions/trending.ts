@@ -5,10 +5,10 @@
 // with the platforms interleaved round-robin. Each platform's result is cached for
 // 15 minutes under `trending/{platform, ...adapter.cacheParams('trending')}`: only TikTok
 // sends `region`, so Instagram/YouTube share one entry across regions. Empty feeds are
-// not cached. Trending feeds have no cursors.
+// cached for only 2 minutes (TTL_MS.emptyFirstPage). Trending feeds have no cursors.
 import type { Platform } from '../../shared/video';
 import { adapters as defaultAdapters, type PlatformAdapter } from './lib/adapters';
-import { checkPassword } from './lib/auth';
+import { checkPassword, type Sleep } from './lib/auth';
 import { TTL_MS, cacheKey, createCache, netlifyBlobStore, type CacheStore } from './lib/cache';
 import { fanOut, listResponse, type FunctionContext } from './lib/fanout';
 import { requireGet } from './lib/http';
@@ -19,6 +19,8 @@ export type TrendingDeps = {
   store?: CacheStore;
   now?: () => number;
   log?: (message: string) => void;
+  /** Delay before a wrong-password 401 (see lib/auth.ts); injectable for tests. */
+  sleep?: Sleep;
 };
 
 export function createTrendingHandler(deps: TrendingDeps = {}) {
@@ -26,7 +28,7 @@ export function createTrendingHandler(deps: TrendingDeps = {}) {
   const cache = createCache(deps.store ?? netlifyBlobStore(), deps.now);
 
   return async (req: Request, context?: FunctionContext): Promise<Response> => {
-    const denied = requireGet(req) ?? checkPassword(req);
+    const denied = requireGet(req) ?? (await checkPassword(req, { sleep: deps.sleep }));
     if (denied) return denied;
 
     const parsed = validateTrending(new URL(req.url));

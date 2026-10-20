@@ -11,7 +11,7 @@
 //
 // Errors: missing key → 500 server_not_configured; out of credits (402) → { credits: 0 };
 // any other upstream failure → 502 { error: 'credits_unavailable' } (not cached).
-import { checkPassword } from './lib/auth';
+import { checkPassword, type Sleep } from './lib/auth';
 import { TTL_MS, cacheKey, createCache, netlifyBlobStore, type CacheStore } from './lib/cache';
 import { errorCodeOf, runInBackground, type FunctionContext } from './lib/fanout';
 import { errorResponse, jsonResponse, requireGet } from './lib/http';
@@ -38,6 +38,8 @@ export type CreditsDeps = {
   store?: CacheStore;
   now?: () => number;
   log?: (message: string) => void;
+  /** Delay before a wrong-password 401 (see lib/auth.ts); injectable for tests. */
+  sleep?: Sleep;
 };
 
 export function createCreditsHandler(deps: CreditsDeps = {}) {
@@ -46,7 +48,7 @@ export function createCreditsHandler(deps: CreditsDeps = {}) {
   const log = deps.log ?? ((m: string) => console.warn(m));
 
   return async (req: Request, context?: FunctionContext): Promise<Response> => {
-    const denied = requireGet(req) ?? checkPassword(req);
+    const denied = requireGet(req) ?? (await checkPassword(req, { sleep: deps.sleep }));
     if (denied) return denied;
 
     const cached = await cache.read<CreditsResponse>(CREDITS_CACHE_KEY);

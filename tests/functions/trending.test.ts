@@ -56,6 +56,22 @@ describe('GET /api/trending', () => {
     expect(text).not.toContain('adapter bug');
   });
 
+  it('maps an upstream 429 to rate_limited, keeps the other platforms, and does not cache it', async () => {
+    const limited = new ScrapeCreatorsError('rate_limited', 429, 'Scrape Creators /v1/tiktok/get-trending-feed failed');
+    const { adapters, calls } = fakeAdapters({ tiktok: { trending: limited } });
+    const store = memoryStore();
+    const handler = settled(createTrendingHandler({ adapters, store, log: quiet }));
+    const res = await handler(get('/api/trending'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const json = await body<VideoListResponse>(res);
+    expect(json.videos.map((v) => v.platform)).toEqual(['instagram', 'youtube']);
+    expect(json.errors).toEqual([{ platform: 'tiktok', code: 'rate_limited', message: 'TikTok is busy — try again shortly' }]);
+    await handler(get('/api/trending'));
+    expect(calls.tiktok.trending).toHaveLength(2);
+    expect(store.data.size).toBe(2);
+  });
+
   it('returns 500 server_not_configured when every platform fails with missing_key', async () => {
     const missing = new ScrapeCreatorsError('missing_key', 0, 'SCRAPECREATORS_API_KEY is not configured');
     const { adapters } = fakeAdapters({

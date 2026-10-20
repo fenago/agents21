@@ -2,7 +2,7 @@
 // round-robin merge (PRD §7.2, §7.3). Shared by trending and search.
 import type { Platform, PlatformError, Video, VideoListResponse } from '../../../shared/video';
 import type { AdapterResult } from './adapters';
-import type { Cache } from './cache';
+import { TTL_MS, type Cache } from './cache';
 import { CACHE_NONE, CACHE_OK, errorResponse, jsonResponse } from './http';
 import { sanitizeVideos } from './sanitize';
 import { ScrapeCreatorsError, type ScrapeCreatorsErrorCode } from './scrapecreators';
@@ -34,6 +34,8 @@ export function platformErrorMessage(platform: Platform, code: PlatformErrorCode
       return `${name} blocked the request, try again later`;
     case 'not_found':
       return `${name} returned no results`;
+    case 'rate_limited':
+      return `${name} is busy — try again shortly`;
     case 'timeout':
       return `${name} took too long to respond`;
     case 'upstream':
@@ -51,7 +53,7 @@ export type PlatformTask = {
   platform: Platform;
   /** Cache key for this platform's result (see cache.ts). */
   key: string;
-  /** True when the request has no cursor. An empty first page is a soft failure and is not cached. */
+  /** True when the request has no cursor. An empty first page is a soft failure, cached only briefly. */
   firstPage: boolean;
   run: () => Promise<AdapterResult>;
 };
@@ -69,9 +71,13 @@ export function runInBackground(promise: Promise<unknown>, context?: FunctionCon
   if (typeof context?.waitUntil === 'function') context.waitUntil(safe);
 }
 
-/** Whether a fresh adapter result is worth caching. */
-export function isCacheable(result: AdapterResult, firstPage: boolean): boolean {
-  return !(firstPage && result.videos.length === 0);
+/**
+ * TTL for a fresh adapter result: `emptyTtlMs` for an empty first page (likely a soft
+ * failure, so re-checked soon), `ttlMs` for everything else. An empty later page is the
+ * normal end of a result list and gets the full TTL.
+ */
+export function cacheTtlFor(result: AdapterResult, firstPage: boolean, ttlMs: number, emptyTtlMs: number): number {
+  return firstPage && result.videos.length === 0 ? emptyTtlMs : ttlMs;
 }
 
 export type Outcome =
@@ -81,6 +87,8 @@ export type Outcome =
 export type FanOutOptions = {
   cache: Cache;
   ttlMs: number;
+  /** TTL for an empty first page. Defaults to TTL_MS.emptyFirstPage (2 minutes). */
+  emptyTtlMs?: number;
   /** Netlify context; cache writes go to `waitUntil` instead of being awaited. */
   context?: FunctionContext;
   /** Safe diagnostics only (platform, code, status). Defaults to console.warn. */
@@ -93,22 +101,22 @@ function isAdapterResult(value: unknown): value is AdapterResult {
 
 /**
  * Runs every task in parallel. Each task reads its own cache entry first; on a miss it
- * calls the adapter and caches only a successful, non-empty first page (or any later
- * page). Cache writes are not awaited on the request path (see runInBackground).
+ * calls the adapter and caches every successful result (an empty first page with the
+ * short `emptyTtlMs`); failures are never cached. Cache writes are not awaited on the request path (see runInBackground).
  * Failures become Outcomes, never rejections (Promise.allSettled), so one platform
  * cannot fail the request.
  */
 export async function fanOut(tasks: PlatformTask[], opts: FanOutOptions): Promise<Outcome[]> {
   const log = opts.log ?? ((m: string) => console.warn(m));
+  const emptyTtlMs = opts.emptyTtlMs ?? TTL_MS.emptyFirstPage;
 
   const settled = await Promise.allSettled(
     tasks.map(async (task) => {
       const hit = await opts.cache.read<AdapterResult>(task.key);
       if (isAdapterResult(hit)) return { result: hit, cached: true };
       const result = await task.run();
-      if (isCacheable(result, task.firstPage)) {
-        runInBackground(opts.cache.write(task.key, result, opts.ttlMs), opts.context);
-      }
+      const ttl = cacheTtlFor(result, task.firstPage, opts.ttlMs, emptyTtlMs);
+      runInBackground(opts.cache.write(task.key, result, ttl), opts.context);
       return { result, cached: false };
     }),
   );

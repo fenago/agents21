@@ -22,6 +22,8 @@ You never upload anything to Netlify by hand. Netlify builds the React site and 
    - `APP_PASSWORD`: optional shared password for the app
 4. Deploy. Open `/api/health` on the live site to confirm the key is configured.
 
+`netlify.toml` also sets the security headers: a strict Content-Security-Policy (same-origin scripts, styles and API calls; images from any `https:` host because thumbnails come from many platform CDNs), `Permissions-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`. If you add a third-party script, font or API call, update the CSP there (see PRD §7.4).
+
 After setup, every push to `main` goes live. Pull requests get Deploy Previews. GitHub Actions CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests and build as a quality check; it does not deploy.
 
 ## Local development
@@ -38,7 +40,7 @@ Copy `.env.example` to `.env` for local secrets. `.env` is gitignored.
 
 ## API
 
-All endpoints are `GET` only (anything else returns `405`) and live under `/api/*`, which `netlify.toml` redirects to `/.netlify/functions/:splat`. When `APP_PASSWORD` is set, `trending`, `search` and `credits` require the header `x-app-password: <password>` and otherwise return `401 { "error": "unauthorized" }`. `health` is always public.
+All endpoints are `GET` only (anything else returns `405`) and live under `/api/*`, which `netlify.toml` redirects to `/.netlify/functions/:splat`. When `APP_PASSWORD` is set, `trending`, `search` and `credits` require the header `x-app-password: <password>` and otherwise return `401 { "error": "unauthorized" }`. A wrong password is answered after a fixed 300 ms delay, to slow down guessing. `health` is always public and returns only booleans (`ok`, `apiKeyConfigured`, `passwordGate`).
 
 | Endpoint | Params | Server cache |
 |---|---|---|
@@ -59,7 +61,8 @@ All endpoints are `GET` only (anything else returns `405`) and live under `/api/
 ```
 
 - Videos are interleaved round-robin across platforms (one from each in turn). Sorting is done in the browser.
-- If one platform fails, the request still returns `200` with that platform listed in `errors`. If every platform fails because the API key is missing, the response is `500 { "error": "server_not_configured" }`.
+- If one platform fails, the request still returns `200` with that platform listed in `errors`. `code` is one of `missing_key`, `bad_request`, `unauthorized`, `out_of_credits` (upstream `402`), `forbidden`, `not_found`, `rate_limited` (upstream `429`: "<Platform> is busy — try again shortly"), `upstream`, `timeout` or `internal`. Failed platforms are never cached.
+- An empty first page (an empty trending feed, or a first search page with no results) is cached for only 2 minutes instead of the full TTL. If every platform fails because the API key is missing, the response is `500 { "error": "server_not_configured" }`.
 - Every `url`, `thumbnail` and author link in a response is `https:`. Videos with an unsafe `url` are dropped.
 
 **Load more (search).** Send the same `q`/`platforms`/`window`/`region` again and add one `cursor_<platform>` param for each entry in the previous response's `cursors`, for example `/api/search?q=cats&cursor_tiktok=20&cursor_youtube=EpcD…`. When any cursor is present, only the platforms that have a cursor are queried. A platform missing from `cursors` has no more pages. The Instagram cursor is a page number from 2 to 11; the others are at most 2000 characters.

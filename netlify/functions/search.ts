@@ -20,10 +20,12 @@
 // `search/{platform, ...adapter.cacheParams('search')}`, i.e. the upstream path and the
 // params actually sent: Instagram ignores region, hashtag endpoints ignore window (and
 // YouTube hashtag ignores region), Instagram cursors are normalized to page numbers.
-// An empty first page is not cached (soft failure); cache writes are not awaited.
+// An empty first page is cached for only 2 minutes (likely a soft failure, but caching it
+// stops a persistently empty platform from costing a credit per request); cache writes are
+// not awaited.
 import type { Platform } from '../../shared/video';
 import { adapters as defaultAdapters, type PlatformAdapter } from './lib/adapters';
-import { checkPassword } from './lib/auth';
+import { checkPassword, type Sleep } from './lib/auth';
 import { TTL_MS, cacheKey, createCache, netlifyBlobStore, type CacheStore } from './lib/cache';
 import { fanOut, listResponse, type FunctionContext } from './lib/fanout';
 import { requireGet } from './lib/http';
@@ -34,6 +36,8 @@ export type SearchDeps = {
   store?: CacheStore;
   now?: () => number;
   log?: (message: string) => void;
+  /** Delay before a wrong-password 401 (see lib/auth.ts); injectable for tests. */
+  sleep?: Sleep;
 };
 
 export function createSearchHandler(deps: SearchDeps = {}) {
@@ -41,7 +45,7 @@ export function createSearchHandler(deps: SearchDeps = {}) {
   const cache = createCache(deps.store ?? netlifyBlobStore(), deps.now);
 
   return async (req: Request, context?: FunctionContext): Promise<Response> => {
-    const denied = requireGet(req) ?? checkPassword(req);
+    const denied = requireGet(req) ?? (await checkPassword(req, { sleep: deps.sleep }));
     if (denied) return denied;
 
     const parsed = validateSearch(new URL(req.url));

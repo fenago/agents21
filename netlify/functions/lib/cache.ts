@@ -8,7 +8,8 @@
 //   never matters. It is hashed because params hold user text and cursors up to 2000
 //   chars, while blob keys must stay short and path-safe.
 // - The functions cache per platform, never the merged response: one failed platform
-//   is simply not written and is retried on the next request.
+//   is simply not written and is retried on the next request. An empty first page is
+//   written with the short TTL_MS.emptyFirstPage.
 // - The cache is best-effort. Any store error or slow store (no Blobs context locally or
 //   in tests, network blip) is treated as a miss / skipped write and never fails a request.
 import { createHash } from 'node:crypto';
@@ -22,6 +23,12 @@ export const TTL_MS = {
   trending: 15 * 60_000,
   search: 30 * 60_000,
   credits: 10 * 60_000,
+  /**
+   * An empty first page (trending feed or search) is usually a soft upstream failure, so it
+   * is kept only briefly: long enough that a persistently empty platform does not cost a
+   * credit on every page view, short enough that real results show up again quickly.
+   */
+  emptyFirstPage: 2 * 60_000,
 } as const;
 
 /** Cap on each store operation so a slow store cannot eat the upstream call's time budget. */

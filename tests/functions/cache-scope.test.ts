@@ -1,20 +1,26 @@
-// Cache behaviour of the list functions: keys hold only params the upstream uses, soft
-// failures are not cached, and cache writes stay off the request path.
+// Cache behaviour of the list functions: keys hold only params the upstream uses, empty
+// first pages (soft failures) are cached only briefly, and cache writes stay off the
+// request path.
 import { describe, expect, it } from 'vitest';
 import type { VideoListResponse } from '../../shared/video';
 import { createCreditsHandler } from '../../netlify/functions/credits';
 import { fanOut } from '../../netlify/functions/lib/fanout';
-import { createCache, type CacheStore } from '../../netlify/functions/lib/cache';
+import { TTL_MS, createCache, type CacheStore } from '../../netlify/functions/lib/cache';
 import { createSearchHandler } from '../../netlify/functions/search';
 import { createTrendingHandler } from '../../netlify/functions/trending';
 import { body, brokenStore, fakeAdapters, fakeContext, get, memoryStore, settled, video } from './helpers';
 
 const quiet = () => {};
 
-function search(replies: Parameters<typeof fakeAdapters>[0] = {}) {
+function search(replies: Parameters<typeof fakeAdapters>[0] = {}, now?: () => number) {
   const fakes = fakeAdapters(replies);
   const store = memoryStore();
-  return { ...fakes, store, handler: settled(createSearchHandler({ adapters: fakes.adapters, store, log: quiet })) };
+  return { ...fakes, store, handler: settled(createSearchHandler({ adapters: fakes.adapters, store, now, log: quiet })) };
+}
+
+/** Expiry time stored in a cache entry. */
+function expiresOf(store: ReturnType<typeof memoryStore>): number[] {
+  return [...store.data.values()].map((raw) => (JSON.parse(raw) as { expires: number }).expires).sort((a, b) => a - b);
 }
 
 describe('trending cache keys', () => {
@@ -28,15 +34,27 @@ describe('trending cache keys', () => {
     expect(calls.youtube.trending).toHaveLength(1);
   });
 
-  it('does not cache an empty feed (soft failure)', async () => {
+  it('caches an empty feed for only 2 minutes, non-empty feeds for 15', async () => {
+    let t = 1_000_000;
     const { adapters, calls } = fakeAdapters({ youtube: { trending: { videos: [] } } });
     const store = memoryStore();
-    const handler = settled(createTrendingHandler({ adapters, store, log: quiet }));
+    const handler = settled(createTrendingHandler({ adapters, store, now: () => t, log: quiet }));
+    expect(TTL_MS.emptyFirstPage).toBe(2 * 60_000);
+
     await handler(get('/api/trending'));
+    expect(expiresOf(store)).toEqual([t + TTL_MS.emptyFirstPage, t + TTL_MS.trending, t + TTL_MS.trending]);
+
+    // Within 2 minutes the empty feed is served from cache: no extra credit.
+    t += TTL_MS.emptyFirstPage - 1;
+    await handler(get('/api/trending'));
+    expect(calls.youtube.trending).toHaveLength(1);
+
+    // After 2 minutes only the empty platform is refetched.
+    t += 1;
     await handler(get('/api/trending'));
     expect(calls.youtube.trending).toHaveLength(2);
     expect(calls.tiktok.trending).toHaveLength(1);
-    expect(store.data.size).toBe(2);
+    expect(calls.instagram.trending).toHaveLength(1);
   });
 });
 
@@ -74,17 +92,30 @@ describe('search cache keys', () => {
     expect(calls.instagram.search.map((c) => c.cursor)).toEqual(['2']);
   });
 
-  it('does not cache an empty first page, but does cache an empty later page', async () => {
-    const { handler, calls, store } = search({ youtube: { search: { videos: [] } } });
+  it('caches an empty first page for 2 minutes and an empty later page for the full 30', async () => {
+    let t = 5_000_000;
+    const { handler, calls, store } = search({ youtube: { search: { videos: [] } } }, () => t);
     await handler(get('/api/search?q=cats&platforms=youtube'));
+    await handler(get('/api/search?q=cats&platforms=youtube'));
+    expect(calls.youtube.search).toHaveLength(1);
+    expect(expiresOf(store)).toEqual([t + TTL_MS.emptyFirstPage]);
+
+    t += TTL_MS.emptyFirstPage;
     await handler(get('/api/search?q=cats&platforms=youtube'));
     expect(calls.youtube.search).toHaveLength(2);
-    expect(store.data.size).toBe(0);
 
+    store.data.clear();
     await handler(get('/api/search?q=cats&platforms=youtube&cursor_youtube=end'));
     await handler(get('/api/search?q=cats&platforms=youtube&cursor_youtube=end'));
     expect(calls.youtube.search).toHaveLength(3);
-    expect(store.data.size).toBe(1);
+    expect(expiresOf(store)).toEqual([t + TTL_MS.search]);
+  });
+
+  it('caches a non-empty first page for 30 minutes', async () => {
+    const t = 7_000_000;
+    const { handler, store } = search({}, () => t);
+    await handler(get('/api/search?q=cats&platforms=tiktok'));
+    expect(expiresOf(store)).toEqual([t + TTL_MS.search]);
   });
 });
 

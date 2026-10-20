@@ -19,9 +19,25 @@
   to = "/index.html"
   status = 200
 
+# Security headers for the SPA (PRD §7.4). Checked against the built dist/ in M5:
+# Vite emits only external /assets/*.js and *.css (no inline <script>/<style>), React sets
+# styles through the CSSOM (not blocked by style-src), and the CSV export is a blob:
+# download link (a navigation, not covered by CSP). So no 'unsafe-inline'/'unsafe-eval'.
+# - img-src allows any https: origin because thumbnails and avatars are hotlinked from
+#   many rotating platform CDNs (tiktokcdn*.com, *.cdninstagram.com, *.fbcdn.net,
+#   i.ytimg.com, yt3.ggpht.com, ...) that cannot be listed reliably. Images cannot run
+#   code, and the API already drops every non-https URL (lib/sanitize.ts). data: is for
+#   small inline icons.
+# - connect-src 'self': the browser only ever calls /api/* on the same origin; the
+#   Scrape Creators key and host are server-side only.
+# - Strict-Transport-Security has no includeSubDomains/preload so a custom domain's
+#   other subdomains are not affected.
 [[headers]]
   for = "/*"
   [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=31536000"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Frame-Options = "DENY"

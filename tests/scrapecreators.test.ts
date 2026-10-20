@@ -38,7 +38,8 @@ describe('codeForStatus', () => {
     [402, 'out_of_credits'],
     [403, 'forbidden'],
     [404, 'not_found'],
-    [429, 'bad_request'],
+    [418, 'bad_request'],
+    [429, 'rate_limited'],
     [500, 'upstream'],
     [503, 'upstream'],
   ] as const)('%i -> %s', (status, code) => {
@@ -93,6 +94,7 @@ describe('scGet', () => {
     [401, 'unauthorized'],
     [403, 'forbidden'],
     [404, 'not_found'],
+    [429, 'rate_limited'],
   ] as const)('does not retry %i (%s)', async (status, code) => {
     const { fetchImpl, calls } = mockFetch(jsonResponse({ error: 'nope' }, status));
     const err = await catchError(scGet('/v1/x', {}, { fetchImpl }));

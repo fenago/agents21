@@ -1,22 +1,33 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCreditsHandler } from '../../netlify/functions/credits';
 import health from '../../netlify/functions/health';
-import { checkPassword, passwordMatches } from '../../netlify/functions/lib/auth';
+import { FAILED_PASSWORD_DELAY_MS, checkPassword, passwordMatches } from '../../netlify/functions/lib/auth';
 import { createSearchHandler } from '../../netlify/functions/search';
 import { createTrendingHandler } from '../../netlify/functions/trending';
 import { body, fakeAdapters, get, memoryStore } from './helpers';
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
 
 const quiet = () => {};
+const noSleep = async () => {};
 
-function handlers() {
+/** Records requested delays and resolves at once. */
+function recordingSleep() {
+  const delays: number[] = [];
+  const sleep = async (ms: number) => void delays.push(ms);
+  return { delays, sleep };
+}
+
+function handlers(sleep = recordingSleep().sleep) {
   const { adapters } = fakeAdapters();
   return {
-    trending: [createTrendingHandler({ adapters, store: memoryStore(), log: quiet }), '/api/trending'],
-    search: [createSearchHandler({ adapters, store: memoryStore(), log: quiet }), '/api/search?q=cats'],
+    trending: [createTrendingHandler({ adapters, store: memoryStore(), log: quiet, sleep }), '/api/trending'],
+    search: [createSearchHandler({ adapters, store: memoryStore(), log: quiet, sleep }), '/api/search?q=cats'],
     credits: [
-      createCreditsHandler({ fetchBalance: async () => ({ creditCount: 1 }), store: memoryStore(), log: quiet }),
+      createCreditsHandler({ fetchBalance: async () => ({ creditCount: 1 }), store: memoryStore(), log: quiet, sleep }),
       '/api/credits',
     ],
   } as const;
@@ -32,11 +43,58 @@ describe('passwordMatches', () => {
     expect(passwordMatches('', 'x')).toBe(false);
   });
 
-  it('checkPassword reads the expected value per call', () => {
-    expect(checkPassword(get('/'), undefined)).toBeUndefined();
-    expect(checkPassword(get('/'), '')).toBeUndefined();
-    expect(checkPassword(get('/', { 'x-app-password': 'a' }), 'a')).toBeUndefined();
-    expect(checkPassword(get('/'), 'a')?.status).toBe(401);
+  it('checkPassword uses the given expected value', async () => {
+    const { sleep } = recordingSleep();
+    expect(await checkPassword(get('/'), { expected: undefined, sleep })).toBeUndefined();
+    expect(await checkPassword(get('/'), { expected: '', sleep })).toBeUndefined();
+    expect(await checkPassword(get('/', { 'x-app-password': 'a' }), { expected: 'a', sleep })).toBeUndefined();
+    expect((await checkPassword(get('/'), { expected: 'a', sleep }))?.status).toBe(401);
+  });
+
+  it('checkPassword reads APP_PASSWORD per call by default', async () => {
+    const { sleep } = recordingSleep();
+    vi.stubEnv('APP_PASSWORD', '');
+    expect(await checkPassword(get('/'), { sleep })).toBeUndefined();
+    vi.stubEnv('APP_PASSWORD', 'b');
+    expect((await checkPassword(get('/'), { sleep }))?.status).toBe(401);
+    expect(await checkPassword(get('/', { 'x-app-password': 'b' }), { sleep })).toBeUndefined();
+  });
+});
+
+describe('failed-password delay', () => {
+  it('delays a wrong password by FAILED_PASSWORD_DELAY_MS, but not a missing or correct one', async () => {
+    const { delays, sleep } = recordingSleep();
+    await checkPassword(get('/', { 'x-app-password': 'wrong' }), { expected: 'right', sleep });
+    expect(delays).toEqual([FAILED_PASSWORD_DELAY_MS]);
+    await checkPassword(get('/', { 'x-app-password': '' }), { expected: 'right', sleep });
+    expect(delays).toHaveLength(2);
+    await checkPassword(get('/'), { expected: 'right', sleep });
+    await checkPassword(get('/', { 'x-app-password': 'right' }), { expected: 'right', sleep });
+    await checkPassword(get('/', { 'x-app-password': 'x' }), { expected: undefined, sleep });
+    expect(delays).toHaveLength(2);
+    expect(FAILED_PASSWORD_DELAY_MS).toBeGreaterThanOrEqual(250);
+    expect(FAILED_PASSWORD_DELAY_MS).toBeLessThanOrEqual(1000);
+  });
+
+  it('the default sleep holds the 401 for the full delay (fake timers)', async () => {
+    vi.useFakeTimers();
+    let res: Response | undefined;
+    const pending = checkPassword(get('/', { 'x-app-password': 'wrong' }), { expected: 'right' }).then((r) => (res = r));
+    await vi.advanceTimersByTimeAsync(FAILED_PASSWORD_DELAY_MS - 1);
+    expect(res).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(res?.status).toBe(401);
+  });
+
+  it.each(['trending', 'search', 'credits'] as const)('%s passes its sleep to the gate', async (name) => {
+    vi.stubEnv('APP_PASSWORD', 's3cret');
+    const { delays, sleep } = recordingSleep();
+    const [handler, path] = handlers(sleep)[name];
+    expect((await handler(get(path, { 'x-app-password': 'nope' }))).status).toBe(401);
+    expect(delays).toEqual([FAILED_PASSWORD_DELAY_MS]);
+    expect((await handler(get(path, { 'x-app-password': 's3cret' }))).status).toBe(200);
+    expect(delays).toHaveLength(1);
   });
 });
 
@@ -92,9 +150,9 @@ describe('rejected requests touch neither the cache nor the adapters', () => {
     return {
       store,
       adapterCalls,
-      trending: createTrendingHandler({ adapters, store, log: quiet }),
-      search: createSearchHandler({ adapters, store, log: quiet }),
-      credits: createCreditsHandler({ fetchBalance, store, log: quiet }),
+      trending: createTrendingHandler({ adapters, store, log: quiet, sleep: noSleep }),
+      search: createSearchHandler({ adapters, store, log: quiet, sleep: noSleep }),
+      credits: createCreditsHandler({ fetchBalance, store, log: quiet, sleep: noSleep }),
     };
   }
 

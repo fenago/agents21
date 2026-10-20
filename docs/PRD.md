@@ -166,16 +166,20 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 | `search` | Calls each platform's search (or hashtag) endpoint in parallel, normalizes, merges, returns per-platform cursors |
 | `credits` | Returns the credit balance |
 
-`trending` and `search` return `{ videos: Video[], cursors: {...}, errors: { platform, code?, message }[] }`. `code` is a machine-readable reason (e.g. `out_of_credits`, `timeout`, `upstream`) and `message` is a fixed, user-safe string. A failure on one platform never fails the whole request.
+`trending` and `search` return `{ videos: Video[], cursors: {...}, errors: { platform, code?, message }[] }`. `code` is a machine-readable reason (e.g. `out_of_credits`, `rate_limited`, `timeout`, `upstream`) and `message` is a fixed, user-safe string. A failure on one platform never fails the whole request.
 
 ### 7.3 Caching & cost control
 - Cache key: endpoint plus normalized params. **TTL: 15 minutes for trending, 30 minutes for search.**
-- Each upstream call has one 8-second deadline, retry included, so it fits Netlify's 10s function limit. Network errors and `5xx` responses are retried once if time remains; `4xx` responses and timeouts are never retried. `402` (out of credits) is shown in the UI as a clear "out of credits" message.
+- **Empty first pages** (an empty trending feed, or a search with no cursor that returns nothing) are usually a soft upstream failure, so they are cached for only **2 minutes** (M5). This keeps a persistently empty platform from costing 1 credit on every page view while still re-checking it soon. An empty later page is the normal end of a list and gets the full TTL. Failed platforms are never cached.
+- Each upstream call has one 8-second deadline, retry included, so it fits Netlify's 10s function limit. Network errors and `5xx` responses are retried once if time remains; `4xx` responses and timeouts are never retried. `402` (out of credits) is shown in the UI as a clear "out of credits" message. `429` maps to `rate_limited` ("<Platform> is busy — try again shortly") and is not retried either, since a retry inside the same deadline would not get past a rate limit.
 - Rough cost per action: a trending load costs 3 credits; a 3-platform search costs 3 credits, plus 1 per platform for each "Load more".
 
 ### 7.4 Security
 - `SCRAPECREATORS_API_KEY` is stored **only** as a Netlify environment variable and is never committed to the repo. `.env` is gitignored, and `.env.example` documents the variable names.
-- `APP_PASSWORD` env var: when set, the functions require a matching `x-app-password` header. The SPA shows a password screen and keeps the password in `sessionStorage`.
+- `APP_PASSWORD` env var: when set, the functions require a matching `x-app-password` header. The SPA shows a password screen and keeps the password in `sessionStorage`. The comparison is constant-time (both sides SHA-256 hashed, then `timingSafeEqual`).
+- **Brute-force throttle (M5, best effort):** a request that sends a wrong password gets its `401` only after a fixed 300 ms delay. Functions are stateless, so there is no per-client counter or lockout; the delay only slows a sequential guesser. A request with no header at all is answered at once (it is the SPA's first call, not a guess). For real protection against a determined attacker, use a long random `APP_PASSWORD`.
+- **`/api/health` stays public (M5 decision).** It returns only `{ ok, apiKeyConfigured, passwordGate }`, three booleans, never the key, the password or their lengths, and it never calls Scrape Creators, so it costs no credits. Keeping it public lets uptime checks and the deploy smoke test run without the password. Knowing that the gate is on reveals nothing an attacker would not learn from a `401`.
+- **Security headers (M5, `netlify.toml`):** `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`, plus `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `Strict-Transport-Security: max-age=31536000`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`. The Vite build has no inline scripts or styles, so no `'unsafe-inline'` is needed. `img-src` allows any `https:` origin because thumbnails and avatars are hotlinked from many rotating platform CDNs (`tiktokcdn`, `cdninstagram`, `fbcdn`, `ytimg`, `ggpht`, …) that cannot be listed reliably. Images cannot run code, and the API drops every non-`https` URL before it reaches the browser. The policy was checked in Chromium against the built `dist/` with mocked `/api/*` (trending, search, password screen, CSV export): no violations.
 - Inputs are validated (query ≤ 100 chars, platform whitelist, enum checks) before anything is sent upstream.
 - Thumbnails are loaded directly from platform CDNs. If hotlinking is blocked, an `image-proxy` function is the fallback (open question O3).
 
@@ -216,14 +220,14 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 
 ## 12. Milestones
 
-| # | Milestone | Done when |
-|---|---|---|
-| M1 | Scaffold | Vite + React + TS + Tailwind, `netlify.toml`, CI lint/test pass |
-| M2 | Adapters | All 3 platform adapters with fixture-based unit tests |
-| M3 | Functions | `trending`, `search`, `credits` with cache, timeouts and partial failures |
-| M4 | UI | Trending grid, search, filters, sort, load-more, CSV, URL state |
-| M5 | Hardening | Password gate, input validation, error states, a11y pass |
-| M6 | Ship | Netlify deploy live from `main`, README with setup steps |
+| # | Milestone | Done when | Status |
+|---|---|---|---|
+| M1 | Scaffold | Vite + React + TS + Tailwind, `netlify.toml`, CI lint/test pass | Done |
+| M2 | Adapters | All 3 platform adapters with fixture-based unit tests | Done |
+| M3 | Functions | `trending`, `search`, `credits` with cache, timeouts and partial failures | Done |
+| M4 | UI | Trending grid, search, filters, sort, load-more, CSV, URL state | Done |
+| M5 | Hardening | Password gate, input validation, error states, a11y pass | In progress. Backend done: CSP and security headers, `429` → `rate_limited`, 2-minute TTL for empty first pages, 300 ms delay on a wrong password, `/api/health` kept public (booleans only). Frontend (error states, a11y) in progress. |
+| M6 | Ship | Netlify deploy live from `main`, README with setup steps | Not started |
 
 ## 13. Risks
 

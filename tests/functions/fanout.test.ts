@@ -31,12 +31,18 @@ describe('platform error messages', () => {
     'out_of_credits',
     'forbidden',
     'not_found',
+    'rate_limited',
     'upstream',
     'timeout',
   ];
 
   it('maps out_of_credits to a clear message', () => {
     expect(platformErrorMessage('tiktok', 'out_of_credits')).toBe('Out of Scrape Creators credits');
+  });
+
+  it('maps rate_limited to a "busy" message naming the platform', () => {
+    expect(platformErrorMessage('tiktok', 'rate_limited')).toBe('TikTok is busy — try again shortly');
+    expect(platformErrorMessage('instagram', 'rate_limited')).toBe('Instagram is busy — try again shortly');
   });
 
   it.each(codes)('%s has a fixed message with no internals', (code) => {

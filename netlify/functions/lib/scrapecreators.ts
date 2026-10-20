@@ -8,7 +8,9 @@
 //   an error message.
 // - The timeout is an overall deadline for the call, including the one retry, so a
 //   request can never run past `timeoutMs` (default 8s, to fit Netlify's 10s sync limit).
-// - One retry on 5xx or network error, only if time is left. 4xx and timeouts are never retried.
+// - One retry on 5xx or network error, only if time is left. 4xx (including 429) and
+//   timeouts are never retried: a retry inside the same 8s budget would not help a rate
+//   limit and would only add load.
 
 export const SCRAPECREATORS_BASE_URL = 'https://api.scrapecreators.com';
 export const DEFAULT_TIMEOUT_MS = 8000;
@@ -20,6 +22,7 @@ export type ScrapeCreatorsErrorCode =
   | 'out_of_credits'
   | 'forbidden'
   | 'not_found'
+  | 'rate_limited'
   | 'upstream'
   | 'timeout';
 
@@ -55,6 +58,8 @@ export function codeForStatus(status: number): ScrapeCreatorsErrorCode {
       return 'forbidden';
     case 404:
       return 'not_found';
+    case 429:
+      return 'rate_limited';
     default:
       return status >= 400 && status < 500 ? 'bad_request' : 'upstream';
   }
