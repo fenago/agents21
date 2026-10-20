@@ -41,7 +41,8 @@ export type CheckPasswordOptions = {
  * after FAILED_PASSWORD_DELAY_MS.
  */
 export async function checkPassword(req: Request, opts: CheckPasswordOptions = {}): Promise<Response | undefined> {
-  const expected = 'expected' in opts ? opts.expected : process.env.APP_PASSWORD;
+  // Trim: browsers strip leading/trailing whitespace from header values, so the supplied password arrives trimmed.
+  const expected = ('expected' in opts ? opts.expected : process.env.APP_PASSWORD)?.trim();
   if (!expected) return undefined;
   const supplied = req.headers.get(PASSWORD_HEADER);
   if (supplied !== null && passwordMatches(supplied, expected)) return undefined;

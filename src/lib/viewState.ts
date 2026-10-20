@@ -29,9 +29,14 @@ export const DEFAULT_VIEW: ViewState = {
   sort: 'relevance',
 };
 
-/** Trim and cap at MAX_QUERY_LENGTH code points (the server's limit). */
+// C0 controls, DEL and C1 controls. The server rejects them with a 400, so a shared
+// link carrying `%00` (or pasted text with tabs/newlines) must not reach it.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
+
+/** Replace control characters with spaces, trim, and cap at MAX_QUERY_LENGTH code points (the server's limit). */
 export function normalizeQuery(raw: string): string {
-  return Array.from(raw.trim()).slice(0, MAX_QUERY_LENGTH).join('').trim();
+  return Array.from(raw.replace(CONTROL_CHARS, ' ').trim()).slice(0, MAX_QUERY_LENGTH).join('').trim();
 }
 
 /** A query the server would accept as a search: not empty and not a bare `#`. */

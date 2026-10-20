@@ -13,7 +13,7 @@ export function VideoGrid({ videos, view, now }: Props) {
   return (
     <ul className={GRID_CLASS} aria-label="Videos">
       {videos.map((v) => (
-        <li key={videoKey(v)} className="flex min-w-0">
+        <li key={videoKey(v)} data-video-key={videoKey(v)} className="flex min-w-0">
           <VideoCard video={v} windowNote={windowCaveat(v.platform, view)} now={now} />
         </li>
       ))}

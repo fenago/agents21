@@ -9,6 +9,7 @@ import {
   fetchSearch,
   fetchTrending,
   getPassword,
+  isSendablePassword,
   parseVideoList,
   setPassword,
 } from './api';
@@ -129,6 +130,60 @@ describe('fetching', () => {
       throw new DOMException('aborted', 'AbortError');
     });
     await expect(fetchCredits({ fetchImpl: aborting, signal: ctrl.signal })).rejects.toMatchObject({ kind: 'aborted' });
+  });
+
+  it('drops a stored password the header cannot carry and reports unauthorized', async () => {
+    for (const bad of ['пароль', 'pass😀', 'line\nbreak']) {
+      setPassword(bad);
+      const f = jsonFetch(200, okBody);
+      await expect(fetchTrending({ platforms: [...all], region: 'US' }, { fetchImpl: f })).rejects.toMatchObject({
+        kind: 'unauthorized',
+      });
+      expect(f).not.toHaveBeenCalled();
+      expect(getPassword()).toBeNull();
+    }
+  });
+
+  it('treats a header TypeError from fetch as unauthorized and clears the password', async () => {
+    setPassword('fine');
+    const f = vi.fn<typeof fetch>(async () => {
+      throw new TypeError("Failed to execute 'fetch': Invalid value for header");
+    });
+    await expect(fetchCredits({ fetchImpl: f })).rejects.toMatchObject({ kind: 'unauthorized' });
+    expect(getPassword()).toBeNull();
+  });
+
+  it('accepts printable Latin-1 passwords only', () => {
+    expect(isSendablePassword('s3cret pass!')).toBe(true);
+    expect(isSendablePassword('café ÿ')).toBe(true);
+    expect(isSendablePassword('пароль')).toBe(false);
+    expect(isSendablePassword('€uro')).toBe(false);
+    expect(isSendablePassword('tab\there')).toBe(false);
+  });
+
+  it('blanks author links, avatars and thumbnails that are not https', () => {
+    const v = (over: Record<string, unknown>) => ({
+      platform: 'youtube',
+      id: 'x',
+      url: 'https://y/x',
+      title: 't',
+      stats: {},
+      ...over,
+    });
+    const res = parseVideoList({
+      videos: [
+        v({ id: 'a', thumbnail: 'javascript:alert(1)', author: { handle: 'h', url: 'javascript:alert(1)', avatar: 'http://i/a' } }),
+        v({ id: 'b', thumbnail: 'https://i/b', author: { handle: 'h', url: 'https://y/@h', avatar: 'https://i/av' } }),
+        v({ id: 'c', thumbnail: 42, author: { handle: 'h', url: 7, avatar: 'data:image/png;base64,AA' } }),
+      ],
+    });
+    const [a, b, c] = res.videos;
+    expect(a!.thumbnail).toBe('');
+    expect(a!.author).toEqual({ handle: 'h' });
+    expect(b!.thumbnail).toBe('https://i/b');
+    expect(b!.author).toEqual({ handle: 'h', url: 'https://y/@h', avatar: 'https://i/av' });
+    expect(c!.thumbnail).toBe('');
+    expect(c!.author).toEqual({ handle: 'h' });
   });
 
   it('reads credits, null when not a number', async () => {

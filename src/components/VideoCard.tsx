@@ -71,7 +71,7 @@ export function VideoCard({ video, windowNote, now }: Props) {
             href={video.author.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`relative z-10 w-fit max-w-full truncate rounded text-xs text-muted hover:text-ink hover:underline ${focusRing}`}
+            className={`relative z-10 -mb-1 w-fit max-w-full truncate rounded py-1 text-xs text-muted hover:text-ink hover:underline ${focusRing}`}
           >
             {creator}
           </a>

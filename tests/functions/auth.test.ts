@@ -59,6 +59,14 @@ describe('passwordMatches', () => {
     expect((await checkPassword(get('/'), { sleep }))?.status).toBe(401);
     expect(await checkPassword(get('/', { 'x-app-password': 'b' }), { sleep })).toBeUndefined();
   });
+
+  it('trims APP_PASSWORD, since browsers trim header values', async () => {
+    const { sleep } = recordingSleep();
+    vi.stubEnv('APP_PASSWORD', '  secret ');
+    expect(await checkPassword(get('/', { 'x-app-password': 'secret' }), { sleep })).toBeUndefined();
+    vi.stubEnv('APP_PASSWORD', '   ');
+    expect(await checkPassword(get('/'), { sleep })).toBeUndefined();
+  });
 });
 
 describe('failed-password delay', () => {

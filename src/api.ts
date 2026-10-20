@@ -65,6 +65,22 @@ export function setPassword(password: string): void {
   }
 }
 
+/**
+ * Whether `password` can be sent in the x-app-password header. Header values are
+ * ByteStrings, so fetch() throws a TypeError for anything outside Latin-1 (and for
+ * CR/LF/NUL). We accept printable Latin-1 only: U+0020 to U+00FF.
+ */
+export function isSendablePassword(password: string): boolean {
+  if (!/^[\u0020-\u00ff]*$/.test(password)) return false;
+  if (typeof Headers === 'undefined') return true;
+  try {
+    new Headers({ [PASSWORD_HEADER]: password });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function clearPassword(): void {
   memoryPassword = null;
   try {
@@ -128,13 +144,27 @@ export async function apiGet(url: string, opts: RequestOptions = {}): Promise<un
   const fetchImpl = opts.fetchImpl ?? fetch;
   const headers: Record<string, string> = { Accept: 'application/json' };
   const password = getPassword();
-  if (password !== null) headers[PASSWORD_HEADER] = password;
+  if (password !== null) {
+    // A stored password the header can't carry would make every fetch throw a
+    // TypeError and lock the tab: drop it and go back to the password screen.
+    if (!isSendablePassword(password)) {
+      clearPassword();
+      throw new ApiError('unauthorized', 401, 'Password required');
+    }
+    headers[PASSWORD_HEADER] = password;
+  }
 
   let res: Response;
   try {
     res = await fetchImpl(url, { headers, signal: opts.signal });
   } catch (err) {
     if (isAbort(err) || opts.signal?.aborted) throw new ApiError('aborted', 0, 'Request cancelled');
+    // Belt and braces: the browser rejected the request while building it (header
+    // value it refuses). Treat it as a bad password so the password screen returns.
+    if (password !== null && err instanceof TypeError && /header/i.test(err.message)) {
+      clearPassword();
+      throw new ApiError('unauthorized', 401, 'Password required');
+    }
     throw new ApiError('network', 0, 'Could not reach the server. Check your connection and try again.');
   }
 
@@ -181,6 +211,11 @@ function isVideo(v: unknown): v is Video {
   );
 }
 
+/** Only https links and images reach the DOM (the server already enforces this). */
+function httpsOrUndefined(u: unknown): string | undefined {
+  return typeof u === 'string' && u.startsWith('https://') ? u : undefined;
+}
+
 function isPlatformError(e: unknown): e is PlatformError {
   return isPlatform(field(e, 'platform')) && typeof field(e, 'message') === 'string';
 }
@@ -191,12 +226,22 @@ export function parseVideoList(body: unknown): VideoListResponse {
   const rawErrors = field(body, 'errors');
   if (!Array.isArray(rawVideos)) throw new ApiError('network', 200, 'The server sent an unexpected response.');
 
-  const videos = rawVideos.filter(isVideo).map((v) => ({
-    ...v,
-    title: typeof v.title === 'string' ? v.title : '',
-    thumbnail: typeof v.thumbnail === 'string' ? v.thumbnail : '',
-    author: { ...v.author, handle: typeof v.author.handle === 'string' ? v.author.handle : '' },
-  }));
+  const videos = rawVideos.filter(isVideo).map((v): Video => {
+    const { url: authorUrl, avatar, ...author } = v.author;
+    const safeAuthorUrl = httpsOrUndefined(authorUrl);
+    const safeAvatar = httpsOrUndefined(avatar);
+    return {
+      ...v,
+      title: typeof v.title === 'string' ? v.title : '',
+      thumbnail: httpsOrUndefined(v.thumbnail) ?? '',
+      author: {
+        ...author,
+        handle: typeof author.handle === 'string' ? author.handle : '',
+        ...(safeAuthorUrl !== undefined && { url: safeAuthorUrl }),
+        ...(safeAvatar !== undefined && { avatar: safeAvatar }),
+      },
+    };
+  });
   const cursors: Cursors = {};
   if (typeof rawCursors === 'object' && rawCursors !== null) {
     for (const [p, c] of Object.entries(rawCursors)) {

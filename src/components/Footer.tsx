@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchCredits } from '../api';
 import { formatFull } from '../lib/format';
+import { focusRing } from './ui';
 
 const LOW_CREDITS = 100;
 
@@ -21,7 +22,7 @@ export function Footer({ authVersion }: { authVersion: number }) {
       <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted sm:px-6">
         <p>
           Data from{' '}
-          <a href="https://scrapecreators.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">
+          <a href="https://scrapecreators.com" target="_blank" rel="noopener noreferrer" className={`rounded underline hover:text-ink ${focusRing}`}>
             Scrape Creators
           </a>
           . Videos open on the original platform.

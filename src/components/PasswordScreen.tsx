@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react';
+import { isSendablePassword } from '../api';
 import { LockIcon } from './icons';
 import { buttonPrimary, focusRing } from './ui';
 
@@ -11,13 +12,25 @@ type Props = {
 /** Shown when the API answers 401 (APP_PASSWORD gate, PRD §7.4). */
 export function PasswordScreen({ rejected, checking, onSubmit }: Props) {
   const [value, setValue] = useState('');
+  const [invalidChars, setInvalidChars] = useState(false);
   const id = useId();
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (value === '' || checking) return;
+    // The password travels in an HTTP header, which can only carry Latin-1 text.
+    if (!isSendablePassword(value)) {
+      setInvalidChars(true);
+      return;
+    }
     onSubmit(value);
   }
+
+  const message = invalidChars
+    ? 'The password can only use Latin letters, digits, spaces and common symbols (no emoji or non-Latin scripts).'
+    : rejected
+      ? 'That password didn’t work. Try again.'
+      : null;
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-12">
@@ -41,14 +54,17 @@ export function PasswordScreen({ rejected, checking, onSubmit }: Props) {
             autoComplete="current-password"
             autoFocus
             value={value}
-            onChange={(e) => setValue(e.target.value)}
-            aria-invalid={rejected || undefined}
-            aria-describedby={rejected ? `${id}-error` : undefined}
-            className={`w-full rounded-lg border bg-surface px-3 py-2 text-sm text-ink ${rejected ? 'border-danger-ink' : 'border-line'} ${focusRing}`}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setInvalidChars(false);
+            }}
+            aria-invalid={message !== null || undefined}
+            aria-describedby={message !== null ? `${id}-error` : undefined}
+            className={`w-full rounded-lg border bg-surface px-3 py-2 text-sm text-ink ${message !== null ? 'border-danger-ink' : 'border-line'} ${focusRing}`}
           />
-          {rejected && (
+          {message !== null && (
             <p id={`${id}-error`} role="alert" className="text-sm text-danger-ink">
-              That password didn’t work. Try again.
+              {message}
             </p>
           )}
         </div>

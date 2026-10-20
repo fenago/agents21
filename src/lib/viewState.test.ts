@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_VIEW, fetchKey, isSearchable, parseViewState, serializeViewState } from './viewState';
+import { DEFAULT_VIEW, fetchKey, isSearchable, normalizeQuery, parseViewState, serializeViewState } from './viewState';
 
 describe('parseViewState', () => {
   it('defaults to the trending view', () => {
@@ -29,6 +29,14 @@ describe('parseViewState', () => {
     expect(parseViewState('?q=%20%20cats%20').q).toBe('cats');
     expect(parseViewState('?q=%23').q).toBe('');
     expect(parseViewState(`?q=${'😀'.repeat(150)}`).q).toBe('😀'.repeat(100));
+  });
+
+  it('strips control characters so a shared link never triggers a 400', () => {
+    expect(parseViewState('?q=cats%00').q).toBe('cats');
+    expect(parseViewState('?q=cat%09videos%0A%0D').q).toBe('cat videos');
+    expect(parseViewState('?q=%00%1F%7F%C2%85').q).toBe('');
+    expect(parseViewState('?q=%23%00').q).toBe('');
+    expect(normalizeQuery('a\u0000b')).toBe('a b');
   });
 });
 
