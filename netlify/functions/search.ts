@@ -3,7 +3,8 @@
 // (routed by the /api/* redirect in netlify.toml; no config.path by convention).
 //
 // Params (validated in lib/validation.ts; invalid input → 400 { error, field, message }):
-//   q          required, trimmed, 1–100 chars. A leading `#` means hashtag search where supported.
+//   q          required, trimmed, 1–100 chars, no control characters. A leading `#` means
+//              hashtag search where supported.
 //   platforms  optional, comma-separated subset of tiktok,instagram,youtube (default: all).
 //   window     optional, today|week|month|all (default: all). Ignored by hashtag endpoints.
 //   region     optional, two-letter country code (default: US).
@@ -16,12 +17,15 @@
 // The response `cursors` holds the next cursor for each platform that has more pages.
 //
 // Each platform's page is cached for 30 minutes under
-// `search/{platform, q, window, region, cursor}`.
+// `search/{platform, ...adapter.cacheParams('search')}`, i.e. the upstream path and the
+// params actually sent: Instagram ignores region, hashtag endpoints ignore window (and
+// YouTube hashtag ignores region), Instagram cursors are normalized to page numbers.
+// An empty first page is not cached (soft failure); cache writes are not awaited.
 import type { Platform } from '../../shared/video';
 import { adapters as defaultAdapters, type PlatformAdapter } from './lib/adapters';
 import { checkPassword } from './lib/auth';
 import { TTL_MS, cacheKey, createCache, netlifyBlobStore, type CacheStore } from './lib/cache';
-import { fanOut, listResponse } from './lib/fanout';
+import { fanOut, listResponse, type FunctionContext } from './lib/fanout';
 import { requireGet } from './lib/http';
 import { platformsToQuery, validateSearch, validationErrorResponse } from './lib/validation';
 
@@ -36,7 +40,7 @@ export function createSearchHandler(deps: SearchDeps = {}) {
   const adapters = deps.adapters ?? defaultAdapters;
   const cache = createCache(deps.store ?? netlifyBlobStore(), deps.now);
 
-  return async (req: Request): Promise<Response> => {
+  return async (req: Request, context?: FunctionContext): Promise<Response> => {
     const denied = requireGet(req) ?? checkPassword(req);
     if (denied) return denied;
 
@@ -47,14 +51,17 @@ export function createSearchHandler(deps: SearchDeps = {}) {
 
     const outcomes = await fanOut(
       platformsToQuery(params).map((platform) => {
+        const adapter = adapters[platform];
         const cursor = params.cursors[platform];
+        const options = { query: q, window, region, cursor };
         return {
           platform,
-          key: cacheKey('search', { platform, q, window, region, cursor }),
-          run: () => adapters[platform].search({ query: q, window, region, cursor }),
+          key: cacheKey('search', { ...adapter.cacheParams('search', options), platform }),
+          firstPage: cursor === undefined,
+          run: () => adapter.search(options),
         };
       }),
-      { cache, ttlMs: TTL_MS.search, log: deps.log },
+      { cache, ttlMs: TTL_MS.search, log: deps.log, context },
     );
     return listResponse(outcomes);
   };

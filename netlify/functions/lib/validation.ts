@@ -73,17 +73,19 @@ export function parseWindow(raw: string | null): Validated<TimeWindow> {
   return { ok: true, value: w as TimeWindow };
 }
 
+// Control characters never appear in real queries or cursors; rejecting them keeps logs,
+// cache keys and upstream URLs clean.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
 export function parseQuery(raw: string | null): Validated<string> {
   const q = (raw ?? '').trim();
   // Count code points, not UTF-16 units, so an emoji counts as one character.
   const length = Array.from(q).length;
   if (length < 1 || length > MAX_QUERY_LENGTH) return fail('q', `q must be 1–${MAX_QUERY_LENGTH} characters`);
+  if (CONTROL_CHARS.test(q)) return fail('q', 'q contains invalid characters');
   return { ok: true, value: q };
 }
-
-// Control characters never appear in real cursors; rejecting them keeps logs and keys clean.
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 export function parseCursor(platform: Platform, raw: string): Validated<string> {
   const field = `${CURSOR_PARAM_PREFIX}${platform}`;
@@ -94,6 +96,8 @@ export function parseCursor(platform: Platform, raw: string): Validated<string> 
     if (!Number.isInteger(n) || n < 2 || n > INSTAGRAM_MAX_PAGE) {
       return fail(field, `${field} must be an integer from 2 to ${INSTAGRAM_MAX_PAGE}`);
     }
+    // Canonical form, so `02` and `2` are the same page (and the same cache entry).
+    return { ok: true, value: String(n) };
   }
   return { ok: true, value: raw };
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { VideoListResponse } from '../../shared/video';
 import { ScrapeCreatorsError } from '../../netlify/functions/lib/scrapecreators';
 import { createSearchHandler } from '../../netlify/functions/search';
-import { body, brokenStore, fakeAdapters, get, memoryStore, video } from './helpers';
+import { body, brokenStore, settled, fakeAdapters, get, memoryStore, video } from './helpers';
 
 const quiet = () => {};
 const MIN = 60_000;
@@ -10,7 +10,7 @@ const MIN = 60_000;
 function setup(replies: Parameters<typeof fakeAdapters>[0] = {}, now?: () => number) {
   const fakes = fakeAdapters(replies);
   const store = memoryStore();
-  const handler = createSearchHandler({ adapters: fakes.adapters, store, now, log: quiet });
+  const handler = settled(createSearchHandler({ adapters: fakes.adapters, store, now, log: quiet }));
   return { ...fakes, store, handler };
 }
 
@@ -106,7 +106,7 @@ describe('GET /api/search', () => {
 
   it('works with a broken blob store', async () => {
     const fakes = fakeAdapters();
-    const handler = createSearchHandler({ adapters: fakes.adapters, store: brokenStore(), log: quiet });
+    const handler = settled(createSearchHandler({ adapters: fakes.adapters, store: brokenStore(), log: quiet }));
     const res = await handler(get('/api/search?q=cats'));
     expect(res.status).toBe(200);
     expect((await body<VideoListResponse>(res)).videos).toHaveLength(3);
@@ -122,6 +122,10 @@ describe('GET /api/search', () => {
     ['?q=cats&cursor_instagram=12', 'cursor_instagram'],
     [`?q=cats&cursor_youtube=${'x'.repeat(2001)}`, 'cursor_youtube'],
     ['?q=cats&platforms=youtube&cursor_tiktok=5', 'cursor_tiktok'],
+    ['?q=ca%00ts', 'q'],
+    ['?q=cats%0Adogs', 'q'],
+    ['?q=cats%09dogs', 'q'],
+    ['?q=cats%7F', 'q'],
   ])('400 for %s (field %s) without calling adapters', async (qs, field) => {
     const { handler, calls } = setup();
     const res = await handler(get(`/api/search${qs}`));

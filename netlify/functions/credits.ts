@@ -13,7 +13,7 @@
 // any other upstream failure → 502 { error: 'credits_unavailable' } (not cached).
 import { checkPassword } from './lib/auth';
 import { TTL_MS, cacheKey, createCache, netlifyBlobStore, type CacheStore } from './lib/cache';
-import { errorCodeOf } from './lib/fanout';
+import { errorCodeOf, runInBackground, type FunctionContext } from './lib/fanout';
 import { errorResponse, jsonResponse, requireGet } from './lib/http';
 import { scGet } from './lib/scrapecreators';
 
@@ -45,7 +45,7 @@ export function createCreditsHandler(deps: CreditsDeps = {}) {
   const cache = createCache(deps.store ?? netlifyBlobStore(), deps.now);
   const log = deps.log ?? ((m: string) => console.warn(m));
 
-  return async (req: Request): Promise<Response> => {
+  return async (req: Request, context?: FunctionContext): Promise<Response> => {
     const denied = requireGet(req) ?? checkPassword(req);
     if (denied) return denied;
 
@@ -56,7 +56,7 @@ export function createCreditsHandler(deps: CreditsDeps = {}) {
 
     try {
       const body: CreditsResponse = { credits: parseCreditBalance(await fetchBalance()) };
-      if (body.credits !== null) await cache.write(CREDITS_CACHE_KEY, body, TTL_MS.credits);
+      if (body.credits !== null) runInBackground(cache.write(CREDITS_CACHE_KEY, body, TTL_MS.credits), context);
       return jsonResponse(body);
     } catch (err) {
       const code = errorCodeOf(err);

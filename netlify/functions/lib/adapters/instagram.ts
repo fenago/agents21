@@ -5,7 +5,15 @@
 import type { Video } from '../../../../shared/video';
 import { scGet } from '../scrapecreators';
 import { asArray, at, compact, dedupeById, firstIso, firstNum, firstStr, hashtagOf } from './normalize-utils';
-import type { AdapterDeps, AdapterResult, PlatformAdapter, SearchOptions, TimeWindow } from './types';
+import {
+  cacheParamsFrom,
+  type AdapterDeps,
+  type AdapterResult,
+  type PlatformAdapter,
+  type SearchOptions,
+  type TimeWindow,
+  type UpstreamRequest,
+} from './types';
 
 export const INSTAGRAM_MAX_PAGE = 11;
 
@@ -96,32 +104,48 @@ export function nextInstagramPage(page: number, videosOnPage: number): number | 
   return page + 1;
 }
 
+export function instagramTrendingRequest(): UpstreamRequest {
+  return { path: '/v1/instagram/reels/trending', params: {} };
+}
+
+/**
+ * undefined when no call is needed (empty query). `region` is not sent (the endpoint has
+ * no such param) and the cursor is normalized to a page number, so `02` and `2` match.
+ */
+export function instagramSearchRequest(o: SearchOptions): UpstreamRequest | undefined {
+  const query = hashtagOf(o.query) ?? o.query.trim();
+  if (!query) return undefined;
+  const page = instagramPage(o.cursor);
+  return {
+    path: '/v2/instagram/reels/search',
+    params: {
+      query,
+      date_posted: o.window ? INSTAGRAM_DATE_POSTED[o.window] : undefined,
+      // Page 1 is the API default; only send `page` when paginating.
+      page: page > 1 ? page : undefined,
+    },
+  };
+}
+
 export function createInstagramAdapter(deps: AdapterDeps = {}): PlatformAdapter {
   return {
     platform: 'instagram',
 
     async trending() {
-      const res = await scGet<unknown>('/v1/instagram/reels/trending', {}, deps);
+      const req = instagramTrendingRequest();
+      const res = await scGet<unknown>(req.path, req.params, deps);
       return { videos: normalizeInstagramList(res) };
     },
 
     async search(o: SearchOptions): Promise<AdapterResult> {
-      const query = hashtagOf(o.query) ?? o.query.trim();
-      if (!query) return { videos: [] };
-      const page = instagramPage(o.cursor);
-      const res = await scGet<unknown>(
-        '/v2/instagram/reels/search',
-        {
-          query,
-          date_posted: o.window ? INSTAGRAM_DATE_POSTED[o.window] : undefined,
-          // Page 1 is the API default; only send `page` when paginating.
-          page: page > 1 ? page : undefined,
-        },
-        deps,
-      );
+      const req = instagramSearchRequest(o);
+      if (!req) return { videos: [] };
+      const res = await scGet<unknown>(req.path, req.params, deps);
       const videos = normalizeInstagramList(res);
-      return compact({ videos, cursor: nextInstagramPage(page, videos.length) });
+      return compact({ videos, cursor: nextInstagramPage(instagramPage(o.cursor), videos.length) });
     },
+
+    cacheParams: cacheParamsFrom({ trending: instagramTrendingRequest, search: instagramSearchRequest }),
   };
 }
 

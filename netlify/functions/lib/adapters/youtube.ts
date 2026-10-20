@@ -13,7 +13,15 @@
 import type { Video } from '../../../../shared/video';
 import { scGet } from '../scrapecreators';
 import { asArray, at, compact, dedupeById, firstIso, firstNum, firstStr, hashtagOf } from './normalize-utils';
-import type { AdapterDeps, AdapterResult, PlatformAdapter, SearchOptions, TimeWindow } from './types';
+import {
+  cacheParamsFrom,
+  type AdapterDeps,
+  type AdapterResult,
+  type PlatformAdapter,
+  type SearchOptions,
+  type TimeWindow,
+  type UpstreamRequest,
+} from './types';
 
 export const YOUTUBE_UPLOAD_DATE: Record<TimeWindow, string | undefined> = {
   today: 'today',
@@ -105,44 +113,60 @@ export function normalizeYouTubeResponse(response: unknown): AdapterResult {
   return compact({ videos: normalizeYouTubeList(response), cursor: extractYouTubeCursor(response) });
 }
 
+function continuationToken(cursor: string | number | undefined): string | undefined {
+  return cursor === undefined || cursor === '' ? undefined : String(cursor);
+}
+
+export function youtubeTrendingRequest(): UpstreamRequest {
+  return { path: '/v1/youtube/shorts/trending', params: {} };
+}
+
+/**
+ * undefined when no call is needed (a bare `#`). The hashtag endpoint takes neither a
+ * time window nor a region.
+ */
+export function youtubeSearchRequest(o: SearchOptions, includeExtras = true): UpstreamRequest | undefined {
+  const tag = hashtagOf(o.query);
+  if (tag !== undefined) {
+    if (!tag) return undefined;
+    return {
+      path: '/v1/youtube/search/hashtag',
+      params: { hashtag: tag, type: 'shorts', continuationToken: continuationToken(o.cursor) },
+    };
+  }
+  return {
+    path: '/v1/youtube/search',
+    params: {
+      query: o.query.trim(),
+      uploadDate: o.window ? YOUTUBE_UPLOAD_DATE[o.window] : undefined,
+      type: 'shorts',
+      region: o.region,
+      continuationToken: continuationToken(o.cursor),
+      includeExtras: includeExtras ? true : undefined,
+    },
+  };
+}
+
 export function createYouTubeAdapter(deps: YouTubeAdapterDeps = {}): PlatformAdapter {
   const { includeExtras = true, ...http } = deps;
-  const continuationToken = (cursor: string | number | undefined) =>
-    cursor === undefined || cursor === '' ? undefined : String(cursor);
+  const searchRequest = (o: SearchOptions) => youtubeSearchRequest(o, includeExtras);
 
   return {
     platform: 'youtube',
 
     async trending() {
-      const res = await scGet<unknown>('/v1/youtube/shorts/trending', {}, http);
+      const req = youtubeTrendingRequest();
+      const res = await scGet<unknown>(req.path, req.params, http);
       return { videos: normalizeYouTubeList(res, { allShorts: true }) };
     },
 
     async search(o: SearchOptions) {
-      const tag = hashtagOf(o.query);
-      if (tag !== undefined) {
-        if (!tag) return { videos: [] };
-        const res = await scGet<unknown>(
-          '/v1/youtube/search/hashtag',
-          { hashtag: tag, type: 'shorts', continuationToken: continuationToken(o.cursor) },
-          http,
-        );
-        return normalizeYouTubeResponse(res);
-      }
-      const res = await scGet<unknown>(
-        '/v1/youtube/search',
-        {
-          query: o.query.trim(),
-          uploadDate: o.window ? YOUTUBE_UPLOAD_DATE[o.window] : undefined,
-          type: 'shorts',
-          region: o.region,
-          continuationToken: continuationToken(o.cursor),
-          includeExtras: includeExtras ? true : undefined,
-        },
-        http,
-      );
-      return normalizeYouTubeResponse(res);
+      const req = searchRequest(o);
+      if (!req) return { videos: [] };
+      return normalizeYouTubeResponse(await scGet<unknown>(req.path, req.params, http));
     },
+
+    cacheParams: cacheParamsFrom({ trending: youtubeTrendingRequest, search: searchRequest }),
   };
 }
 

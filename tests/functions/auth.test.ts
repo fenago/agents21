@@ -77,3 +77,53 @@ describe('health stays public', () => {
     expect((await health()).status).toBe(200);
   });
 });
+
+describe('rejected requests touch neither the cache nor the adapters', () => {
+  function instrumented() {
+    const { adapters, calls } = fakeAdapters();
+    const store = memoryStore();
+    let balanceCalls = 0;
+    const fetchBalance = async () => {
+      balanceCalls++;
+      return { creditCount: 1 };
+    };
+    const adapterCalls = () =>
+      Object.values(calls).reduce((n, c) => n + c.trending.length + c.search.length, 0) + balanceCalls;
+    return {
+      store,
+      adapterCalls,
+      trending: createTrendingHandler({ adapters, store, log: quiet }),
+      search: createSearchHandler({ adapters, store, log: quiet }),
+      credits: createCreditsHandler({ fetchBalance, store, log: quiet }),
+    };
+  }
+
+  it.each([
+    ['trending', '/api/trending'],
+    ['search', '/api/search?q=cats'],
+    ['credits', '/api/credits'],
+  ] as const)('401 on %s: no store get, no upstream call', async (name, path) => {
+    vi.stubEnv('APP_PASSWORD', 's3cret');
+    const t = instrumented();
+    const res = await t[name](get(path, { 'x-app-password': 'wrong' }));
+    expect(res.status).toBe(401);
+    expect(t.store.gets).toBe(0);
+    expect(t.store.sets).toBe(0);
+    expect(t.adapterCalls()).toBe(0);
+  });
+
+  it.each([
+    ['trending', '/api/trending?platforms=myspace'],
+    ['trending', '/api/trending?region=usa'],
+    ['search', '/api/search?q=cats&window=decade'],
+    ['search', '/api/search?q=ca%00ts'],
+    ['search', '/api/search'],
+  ] as const)('400 on %s (%s): no store get, no upstream call', async (name, path) => {
+    const t = instrumented();
+    const res = await t[name](get(path));
+    expect(res.status).toBe(400);
+    expect(t.store.gets).toBe(0);
+    expect(t.store.sets).toBe(0);
+    expect(t.adapterCalls()).toBe(0);
+  });
+});

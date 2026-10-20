@@ -11,5 +11,16 @@ export const adapters: Record<Platform, PlatformAdapter> = {
   youtube: youtubeAdapter,
 };
 
-export type { AdapterDeps, AdapterResult, PlatformAdapter, SearchOptions, TimeWindow, TrendingOptions } from './types';
-export { TIME_WINDOWS } from './types';
+export type {
+  AdapterDeps,
+  AdapterResult,
+  CacheKeyParams,
+  CallKind,
+  PlatformAdapter,
+  SearchOptions,
+  TimeWindow,
+  TrendingOptions,
+  UpstreamParams,
+  UpstreamRequest,
+} from './types';
+export { TIME_WINDOWS, cacheParamsFrom } from './types';

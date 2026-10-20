@@ -166,7 +166,7 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 | `search` | Calls each platform's search (or hashtag) endpoint in parallel, normalizes, merges, returns per-platform cursors |
 | `credits` | Returns the credit balance |
 
-Each function returns `{ videos: Video[], cursors: {...}, errors: { platform: message }[] }`. A failure on one platform never fails the whole request.
+`trending` and `search` return `{ videos: Video[], cursors: {...}, errors: { platform, code?, message }[] }`. `code` is a machine-readable reason (e.g. `out_of_credits`, `timeout`, `upstream`) and `message` is a fixed, user-safe string. A failure on one platform never fails the whole request.
 
 ### 7.3 Caching & cost control
 - Cache key: endpoint plus normalized params. **TTL: 15 minutes for trending, 30 minutes for search.**

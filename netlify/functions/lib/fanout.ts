@@ -51,8 +51,28 @@ export type PlatformTask = {
   platform: Platform;
   /** Cache key for this platform's result (see cache.ts). */
   key: string;
+  /** True when the request has no cursor. An empty first page is a soft failure and is not cached. */
+  firstPage: boolean;
   run: () => Promise<AdapterResult>;
 };
+
+/** The slice of the Netlify v2 function context the handlers use. */
+export type FunctionContext = { waitUntil?: (promise: Promise<unknown>) => void };
+
+/**
+ * Runs `promise` off the request path: hands it to `context.waitUntil` when the runtime
+ * provides it (so the invocation stays alive until it settles), otherwise fire-and-forget.
+ * Rejections are always caught.
+ */
+export function runInBackground(promise: Promise<unknown>, context?: FunctionContext): void {
+  const safe = promise.catch(() => {});
+  if (typeof context?.waitUntil === 'function') context.waitUntil(safe);
+}
+
+/** Whether a fresh adapter result is worth caching. */
+export function isCacheable(result: AdapterResult, firstPage: boolean): boolean {
+  return !(firstPage && result.videos.length === 0);
+}
 
 export type Outcome =
   | { platform: Platform; ok: true; result: AdapterResult; cached: boolean }
@@ -61,6 +81,8 @@ export type Outcome =
 export type FanOutOptions = {
   cache: Cache;
   ttlMs: number;
+  /** Netlify context; cache writes go to `waitUntil` instead of being awaited. */
+  context?: FunctionContext;
   /** Safe diagnostics only (platform, code, status). Defaults to console.warn. */
   log?: (message: string) => void;
 };
@@ -71,8 +93,10 @@ function isAdapterResult(value: unknown): value is AdapterResult {
 
 /**
  * Runs every task in parallel. Each task reads its own cache entry first; on a miss it
- * calls the adapter and caches only a successful result. Failures become Outcomes,
- * never rejections (Promise.allSettled), so one platform cannot fail the request.
+ * calls the adapter and caches only a successful, non-empty first page (or any later
+ * page). Cache writes are not awaited on the request path (see runInBackground).
+ * Failures become Outcomes, never rejections (Promise.allSettled), so one platform
+ * cannot fail the request.
  */
 export async function fanOut(tasks: PlatformTask[], opts: FanOutOptions): Promise<Outcome[]> {
   const log = opts.log ?? ((m: string) => console.warn(m));
@@ -82,7 +106,9 @@ export async function fanOut(tasks: PlatformTask[], opts: FanOutOptions): Promis
       const hit = await opts.cache.read<AdapterResult>(task.key);
       if (isAdapterResult(hit)) return { result: hit, cached: true };
       const result = await task.run();
-      await opts.cache.write(task.key, result, opts.ttlMs);
+      if (isCacheable(result, task.firstPage)) {
+        runInBackground(opts.cache.write(task.key, result, opts.ttlMs), opts.context);
+      }
       return { result, cached: false };
     }),
   );

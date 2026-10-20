@@ -22,7 +22,7 @@ describe('cache keys', () => {
 
   it('are short, versioned and path-safe even for 2000-char cursors', () => {
     const key = cacheKey('search', { q: 'x', cursor: 'y'.repeat(2000) });
-    expect(key).toMatch(/^v1\/search\/[0-9a-f]{64}$/);
+    expect(key).toMatch(/^v2\/search\/[0-9a-f]{64}$/);
   });
 });
 

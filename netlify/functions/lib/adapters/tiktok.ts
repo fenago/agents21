@@ -16,7 +16,16 @@ import {
   firstStr,
   hashtagOf,
 } from './normalize-utils';
-import type { AdapterDeps, AdapterResult, PlatformAdapter, SearchOptions, TimeWindow, TrendingOptions } from './types';
+import {
+  cacheParamsFrom,
+  type AdapterDeps,
+  type AdapterResult,
+  type PlatformAdapter,
+  type SearchOptions,
+  type TimeWindow,
+  type TrendingOptions,
+  type UpstreamRequest,
+} from './types';
 
 export const DEFAULT_REGION = 'US';
 
@@ -114,34 +123,47 @@ export function normalizeTikTokResponse(response: unknown): AdapterResult {
   return compact({ videos: normalizeTikTokList(response), cursor: extractTikTokCursor(response) });
 }
 
+export function tiktokTrendingRequest(o: TrendingOptions = {}): UpstreamRequest {
+  return { path: '/v1/tiktok/get-trending-feed', params: { region: o.region || DEFAULT_REGION } };
+}
+
+/** undefined when no call is needed (a bare `#`). The hashtag endpoint takes no time window. */
+export function tiktokSearchRequest(o: SearchOptions): UpstreamRequest | undefined {
+  const tag = hashtagOf(o.query);
+  if (tag !== undefined) {
+    if (!tag) return undefined;
+    return { path: '/v1/tiktok/search/hashtag', params: { hashtag: tag, region: o.region, cursor: o.cursor } };
+  }
+  return {
+    path: '/v1/tiktok/search/keyword',
+    params: {
+      query: o.query.trim(),
+      date_posted: o.window ? TIKTOK_DATE_POSTED[o.window] : undefined,
+      region: o.region,
+      cursor: o.cursor,
+    },
+  };
+}
+
 export function createTikTokAdapter(deps: AdapterDeps = {}): PlatformAdapter {
-  const get = (path: string, params: Record<string, string | number | undefined>) =>
-    scGet<unknown>(path, params, deps);
+  const send = (req: UpstreamRequest) => scGet<unknown>(req.path, req.params, deps);
 
   return {
     platform: 'tiktok',
 
     async trending(o: TrendingOptions = {}) {
-      const res = await get('/v1/tiktok/get-trending-feed', { region: o.region || DEFAULT_REGION });
+      const res = await send(tiktokTrendingRequest(o));
       // The trending feed returns a fresh batch per call; there is no cursor.
       return { videos: normalizeTikTokList(res) };
     },
 
     async search(o: SearchOptions) {
-      const tag = hashtagOf(o.query);
-      if (tag !== undefined) {
-        if (!tag) return { videos: [] };
-        const res = await get('/v1/tiktok/search/hashtag', { hashtag: tag, region: o.region, cursor: o.cursor });
-        return normalizeTikTokResponse(res);
-      }
-      const res = await get('/v1/tiktok/search/keyword', {
-        query: o.query.trim(),
-        date_posted: o.window ? TIKTOK_DATE_POSTED[o.window] : undefined,
-        region: o.region,
-        cursor: o.cursor,
-      });
-      return normalizeTikTokResponse(res);
+      const req = tiktokSearchRequest(o);
+      if (!req) return { videos: [] };
+      return normalizeTikTokResponse(await send(req));
     },
+
+    cacheParams: cacheParamsFrom({ trending: tiktokTrendingRequest, search: tiktokSearchRequest }),
   };
 }
 

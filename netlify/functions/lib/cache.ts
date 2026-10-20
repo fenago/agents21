@@ -1,7 +1,9 @@
 // Server-side response cache on Netlify Blobs (PRD §7.3).
 //
 // - Entries are `{ expires, data }` JSON; expiry is checked on read (Blobs has no native TTL).
-// - Keys: `<version>/<endpoint>/<sha256 of the stable-sorted params>`. The canonical
+// - Keys: `<version>/<endpoint>/<sha256 of the stable-sorted params>`. For trending and
+//   search the params are the platform plus the adapter's `cacheParams()` (upstream path
+//   and the params it actually sends), so inputs a platform ignores never split the cache. The canonical
 //   string is `name=value&…` with names sorted and values URI-encoded, so param order
 //   never matters. It is hashed because params hold user text and cursors up to 2000
 //   chars, while blob keys must stay short and path-safe.
@@ -13,7 +15,7 @@ import { createHash } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 
 /** Bump to invalidate every entry when the cached data shape changes. */
-export const CACHE_VERSION = 'v1';
+export const CACHE_VERSION = 'v2';
 export const STORE_NAME = 'trendscout-cache';
 
 export const TTL_MS = {
@@ -31,7 +33,7 @@ export interface CacheStore {
   set(key: string, value: string): Promise<unknown>;
 }
 
-export type CacheParams = Record<string, string | number | undefined>;
+export type CacheParams = Record<string, string | number | boolean | undefined>;
 
 export function canonicalParams(params: CacheParams): string {
   return Object.keys(params)

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { VideoListResponse } from '../../shared/video';
 import { ScrapeCreatorsError } from '../../netlify/functions/lib/scrapecreators';
 import { createTrendingHandler } from '../../netlify/functions/trending';
-import { body, brokenStore, fakeAdapters, get, memoryStore, video } from './helpers';
+import { body, brokenStore, settled, fakeAdapters, get, memoryStore, video } from './helpers';
 
 const quiet = () => {};
 const MIN = 60_000;
@@ -14,7 +14,7 @@ describe('GET /api/trending', () => {
       instagram: { trending: { videos: [video('instagram', 'i1')] } },
       youtube: { trending: { videos: [video('youtube', 'y1'), video('youtube', 'y2')] } },
     });
-    const handler = createTrendingHandler({ adapters, store: memoryStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: memoryStore(), log: quiet }));
     const res = await handler(get('/api/trending?region=gb'));
 
     expect(res.status).toBe(200);
@@ -28,7 +28,7 @@ describe('GET /api/trending', () => {
 
   it('only calls the selected platforms', async () => {
     const { adapters, calls } = fakeAdapters();
-    const handler = createTrendingHandler({ adapters, store: memoryStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: memoryStore(), log: quiet }));
     const json = await body<VideoListResponse>(await handler(get('/api/trending?platforms=youtube')));
     expect(json.videos.every((v) => v.platform === 'youtube')).toBe(true);
     expect(calls.tiktok.trending).toHaveLength(0);
@@ -41,7 +41,7 @@ describe('GET /api/trending', () => {
       instagram: { trending: new ScrapeCreatorsError('out_of_credits', 402, 'Scrape Creators /v1/instagram/reels/trending failed') },
       youtube: { trending: new TypeError('adapter bug: cannot read x of undefined') },
     });
-    const handler = createTrendingHandler({ adapters, store: memoryStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: memoryStore(), log: quiet }));
     const res = await handler(get('/api/trending'));
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
@@ -63,7 +63,7 @@ describe('GET /api/trending', () => {
       instagram: { trending: missing },
       youtube: { trending: missing },
     });
-    const handler = createTrendingHandler({ adapters, store: memoryStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: memoryStore(), log: quiet }));
     const res = await handler(get('/api/trending'));
     expect(res.status).toBe(500);
     expect(res.headers.get('cache-control')).toBe('no-store');
@@ -74,7 +74,7 @@ describe('GET /api/trending', () => {
     let t = 0;
     const store = memoryStore();
     const { adapters, calls } = fakeAdapters();
-    const handler = createTrendingHandler({ adapters, store, now: () => t, log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store, now: () => t, log: quiet }));
 
     await handler(get('/api/trending'));
     t = 15 * MIN - 1;
@@ -89,7 +89,7 @@ describe('GET /api/trending', () => {
 
   it('keys the cache by region', async () => {
     const { adapters, calls } = fakeAdapters();
-    const handler = createTrendingHandler({ adapters, store: memoryStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: memoryStore(), log: quiet }));
     await handler(get('/api/trending?platforms=tiktok&region=US'));
     await handler(get('/api/trending?platforms=tiktok&region=GB'));
     await handler(get('/api/trending?platforms=tiktok&region=us'));
@@ -107,7 +107,7 @@ describe('GET /api/trending', () => {
         },
       },
     });
-    const handler = createTrendingHandler({ adapters, store, log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store, log: quiet }));
     await handler(get('/api/trending'));
     expect(store.data.size).toBe(2);
 
@@ -120,7 +120,7 @@ describe('GET /api/trending', () => {
 
   it('falls through to live calls when the blob store errors', async () => {
     const { adapters, calls } = fakeAdapters();
-    const handler = createTrendingHandler({ adapters, store: brokenStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: brokenStore(), log: quiet }));
     const res = await handler(get('/api/trending'));
     expect(res.status).toBe(200);
     expect((await body<VideoListResponse>(res)).videos).toHaveLength(3);
@@ -129,7 +129,7 @@ describe('GET /api/trending', () => {
 
   it('rejects invalid input with 400 { error, field } and calls nothing', async () => {
     const { adapters, calls } = fakeAdapters();
-    const handler = createTrendingHandler({ adapters, store: memoryStore(), log: quiet });
+    const handler = settled(createTrendingHandler({ adapters, store: memoryStore(), log: quiet }));
     const res = await handler(get('/api/trending?platforms=tiktok,myspace'));
     expect(res.status).toBe(400);
     expect(res.headers.get('cache-control')).toBe('no-store');
@@ -138,7 +138,7 @@ describe('GET /api/trending', () => {
   });
 
   it('answers 405 to POST', async () => {
-    const handler = createTrendingHandler({ ...fakeAdapters(), store: memoryStore() });
+    const handler = settled(createTrendingHandler({ ...fakeAdapters(), store: memoryStore() }));
     const res = await handler(new Request('https://t.test/api/trending', { method: 'POST' }));
     expect(res.status).toBe(405);
     expect(res.headers.get('allow')).toBe('GET');

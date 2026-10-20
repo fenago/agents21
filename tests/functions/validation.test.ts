@@ -23,7 +23,18 @@ describe('parseQuery', () => {
     expect(parseQuery(raw)).toEqual({ ok: true, value: expected });
   });
 
-  it.each([[null], [''], ['   '], ['a'.repeat(101)], ['😀'.repeat(101)]])('rejects %j', (raw) => {
+  it.each([
+    [null],
+    [''],
+    ['   '],
+    ['a'.repeat(101)],
+    ['😀'.repeat(101)],
+    ['ca\u0000ts'],
+    ['cats\ndogs'],
+    ['cats\tdogs'],
+    ['cats\u001b[31m'],
+    ['cats\u007f'],
+  ])('rejects %j', (raw) => {
     const r = parseQuery(raw);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.field).toBe('q');
@@ -86,8 +97,14 @@ describe('parseCursor', () => {
     expect(parseCursor('tiktok', 'ab\ncd')).toMatchObject({ ok: false, error: { field: 'cursor_tiktok' } });
   });
 
-  it.each(['2', '7', '11'])('accepts Instagram page %s', (raw) => {
-    expect(parseCursor('instagram', raw).ok).toBe(true);
+  it.each([
+    ['2', '2'],
+    ['7', '7'],
+    ['11', '11'],
+    ['02', '2'],
+    ['0011', '11'],
+  ])('accepts Instagram page %s as %s', (raw, page) => {
+    expect(parseCursor('instagram', raw)).toEqual({ ok: true, value: page });
   });
 
   it.each(['0', '1', '12', '2.5', '-3', 'abc', '1e1', ' 3'])('rejects Instagram page %j', (raw) => {

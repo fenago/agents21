@@ -1,5 +1,12 @@
 // Test doubles for the functions layer: in-memory blob store, scripted adapters, video factory.
-import type { AdapterResult, PlatformAdapter, SearchOptions, TrendingOptions } from '../../netlify/functions/lib/adapters';
+import {
+  adapters as realAdapters,
+  type AdapterResult,
+  type PlatformAdapter,
+  type SearchOptions,
+  type TrendingOptions,
+} from '../../netlify/functions/lib/adapters';
+import type { FunctionContext } from '../../netlify/functions/lib/fanout';
 import type { CacheStore } from '../../netlify/functions/lib/cache';
 import type { Platform, Video } from '../../shared/video';
 
@@ -45,7 +52,10 @@ export function video(platform: Platform, id: string, overrides: Partial<Video> 
 
 type Reply = AdapterResult | Error | (() => Promise<AdapterResult>);
 
-/** An adapter whose trending/search answers come from `replies` and records every call. */
+/**
+ * An adapter whose trending/search answers come from `replies` and records every call.
+ * `cacheParams` is the real adapter's (pure, no network), so cache keys behave as in production.
+ */
 export function fakeAdapter(platform: Platform, replies: { trending?: Reply; search?: Reply } = {}) {
   const calls = { trending: [] as (TrendingOptions | undefined)[], search: [] as SearchOptions[] };
   const answer = async (reply: Reply | undefined): Promise<AdapterResult> => {
@@ -64,6 +74,7 @@ export function fakeAdapter(platform: Platform, replies: { trending?: Reply; sea
       calls.search.push(o);
       return answer(replies.search);
     },
+    cacheParams: realAdapters[platform].cacheParams,
   };
   return { adapter, calls };
 }
@@ -84,4 +95,29 @@ export function get(path: string, headers: Record<string, string> = {}): Request
 
 export async function body<T = Record<string, unknown>>(res: Response): Promise<T> {
   return (await res.json()) as T;
+}
+
+/** A Netlify-like context that records `waitUntil` promises; `settle()` awaits them all. */
+export function fakeContext() {
+  const pending: Promise<unknown>[] = [];
+  const context: FunctionContext = { waitUntil: (p) => void pending.push(p) };
+  return {
+    context,
+    pending,
+    async settle() {
+      await Promise.all(pending.splice(0));
+    },
+  };
+}
+
+type Handler = (req: Request, context?: FunctionContext) => Promise<Response>;
+
+/** Wraps a handler so each call passes a context and waits for its background cache writes. */
+export function settled(handler: Handler): (req: Request) => Promise<Response> {
+  return async (req) => {
+    const ctx = fakeContext();
+    const res = await handler(req, ctx.context);
+    await ctx.settle();
+    return res;
+  };
 }

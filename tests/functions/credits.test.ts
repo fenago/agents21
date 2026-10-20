@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCreditsHandler, parseCreditBalance } from '../../netlify/functions/credits';
 import { ScrapeCreatorsError } from '../../netlify/functions/lib/scrapecreators';
-import { body, brokenStore, get, memoryStore } from './helpers';
+import { body, brokenStore, settled, get, memoryStore } from './helpers';
 
 const quiet = () => {};
 // Response example from the Scrape Creators docs page for /v1/account/credit-balance.
@@ -28,7 +28,7 @@ describe('GET /api/credits', () => {
   it('returns { credits } and caches it for 10 minutes', async () => {
     let t = 0;
     const fetchBalance = vi.fn(async () => DOCS_EXAMPLE);
-    const handler = createCreditsHandler({ fetchBalance, store: memoryStore(), now: () => t, log: quiet });
+    const handler = settled(createCreditsHandler({ fetchBalance, store: memoryStore(), now: () => t, log: quiet }));
 
     const res = await handler(get('/api/credits'));
     expect(res.status).toBe(200);
@@ -46,7 +46,7 @@ describe('GET /api/credits', () => {
 
   it('returns credits: null for an unrecognized shape and does not cache it', async () => {
     const fetchBalance = vi.fn(async () => ({ success: true }));
-    const handler = createCreditsHandler({ fetchBalance, store: memoryStore(), log: quiet });
+    const handler = settled(createCreditsHandler({ fetchBalance, store: memoryStore(), log: quiet }));
     expect(await body(await handler(get('/api/credits')))).toEqual({ credits: null });
     await handler(get('/api/credits'));
     expect(fetchBalance).toHaveBeenCalledTimes(2);
@@ -54,7 +54,7 @@ describe('GET /api/credits', () => {
 
   it('maps errors safely', async () => {
     const make = (err: Error) =>
-      createCreditsHandler({ fetchBalance: () => Promise.reject(err), store: memoryStore(), log: quiet });
+      settled(createCreditsHandler({ fetchBalance: () => Promise.reject(err), store: memoryStore(), log: quiet }));
 
     const missing = await make(new ScrapeCreatorsError('missing_key', 0, 'x'))(get('/api/credits'));
     expect(missing.status).toBe(500);
@@ -80,12 +80,12 @@ describe('GET /api/credits', () => {
   });
 
   it('works with a broken blob store', async () => {
-    const handler = createCreditsHandler({ fetchBalance: async () => ({ creditCount: 9 }), store: brokenStore(), log: quiet });
+    const handler = settled(createCreditsHandler({ fetchBalance: async () => ({ creditCount: 9 }), store: brokenStore(), log: quiet }));
     expect(await body(await handler(get('/api/credits')))).toEqual({ credits: 9 });
   });
 
   it('answers 405 to POST', async () => {
-    const handler = createCreditsHandler({ fetchBalance: async () => DOCS_EXAMPLE, store: memoryStore() });
+    const handler = settled(createCreditsHandler({ fetchBalance: async () => DOCS_EXAMPLE, store: memoryStore() }));
     expect((await handler(new Request('https://t.test/api/credits', { method: 'POST' }))).status).toBe(405);
   });
 });
