@@ -1,14 +1,88 @@
 @import 'tailwindcss';
 
-@theme {
-  --color-brand: #7c3aed;
-  --color-brand-strong: #6d28d9;
+/*
+ * Theme tokens. Semantic colours point at CSS variables that switch with
+ * prefers-color-scheme, so components use one class (e.g. `bg-surface`) for both modes.
+ * Contrast pairs were chosen for WCAG AA (≥ 4.5:1 for text).
+ */
+@theme inline {
+  --color-canvas: var(--ts-canvas);
+  --color-surface: var(--ts-surface);
+  --color-subtle: var(--ts-subtle);
+  --color-line: var(--ts-line);
+  --color-ink: var(--ts-ink);
+  --color-muted: var(--ts-muted);
+  --color-brand: var(--ts-brand);
+  --color-brand-strong: var(--ts-brand-strong);
+  --color-on-brand: #ffffff;
+  --color-brand-ink: var(--ts-brand-ink);
+  --color-brand-soft: var(--ts-brand-soft);
+  --color-focus: var(--ts-focus);
+  --color-danger-ink: var(--ts-danger-ink);
+  --color-danger-soft: var(--ts-danger-soft);
+  --color-danger-line: var(--ts-danger-line);
+  --color-warn-ink: var(--ts-warn-ink);
+  --color-warn-soft: var(--ts-warn-soft);
+  --color-tiktok: var(--ts-tiktok);
+  --color-instagram: #c13584;
+  --color-youtube: #cc0000;
 }
 
 :root {
   color-scheme: light dark;
+  --ts-canvas: #fafafa;
+  --ts-surface: #ffffff;
+  --ts-subtle: #f4f4f5;
+  --ts-line: #e4e4e7;
+  --ts-ink: #18181b;
+  --ts-muted: #52525b;
+  --ts-brand: #6d28d9;
+  --ts-brand-strong: #5b21b6;
+  --ts-brand-ink: #6d28d9;
+  --ts-brand-soft: #ede9fe;
+  --ts-focus: #7c3aed;
+  --ts-danger-ink: #991b1b;
+  --ts-danger-soft: #fef2f2;
+  --ts-danger-line: #fecaca;
+  --ts-warn-ink: #854d0e;
+  --ts-warn-soft: #fefce8;
+  --ts-tiktok: #18181b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ts-canvas: #09090b;
+    --ts-surface: #18181b;
+    --ts-subtle: #27272a;
+    --ts-line: #3f3f46;
+    --ts-ink: #f4f4f5;
+    --ts-muted: #a1a1aa;
+    --ts-brand: #6d28d9;
+    --ts-brand-strong: #7c3aed;
+    --ts-brand-ink: #c4b5fd;
+    --ts-brand-soft: #2e1065;
+    --ts-focus: #a78bfa;
+    --ts-danger-ink: #fecaca;
+    --ts-danger-soft: #450a0a;
+    --ts-danger-line: #7f1d1d;
+    --ts-warn-ink: #fde68a;
+    --ts-warn-soft: #422006;
+    --ts-tiktok: #52525b;
+  }
 }
 
 body {
-  @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  @apply bg-canvas text-ink antialiased;
+}
+
+/* Honour reduced motion everywhere, including third-party or future transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
