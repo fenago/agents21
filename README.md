@@ -19,7 +19,7 @@ You never upload anything to Netlify by hand. Netlify builds the React site and 
 2. Production branch: `main`. Leave the build settings alone; they come from `netlify.toml`.
 3. **Project configuration → Environment variables**: add
    - `SCRAPECREATORS_API_KEY`: your Scrape Creators key (**never commit it**)
-   - `APP_PASSWORD`: optional shared password for the app
+   - `APP_PASSWORD`: optional shared password for the app. Use a long random ASCII value; leaving it empty (or only spaces) turns the gate off
 4. Deploy. Open `/api/health` on the live site to confirm the key is configured.
 
 `netlify.toml` also sets the security headers: a strict Content-Security-Policy (same-origin scripts, styles and API calls; images from any `https:` host because thumbnails come from many platform CDNs), `Permissions-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`. If you add a third-party script, font or API call, update the CSP there (see PRD §7.4).

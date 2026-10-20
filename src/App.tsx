@@ -49,6 +49,12 @@ export default function App() {
     target?.focus();
   }, [videos.busy, sorted]);
 
+  // A view change aborts any follow-up; drop its marker so focus isn't moved later.
+  const viewKey = `${view.q}|${view.platforms.join(',')}|${view.window}|${view.region}`;
+  useEffect(() => {
+    followUpFrom.current = null;
+  }, [viewKey]);
+
   useEffect(() => {
     document.title = view.q ? `${view.q} · TrendScout` : 'TrendScout: trending videos';
   }, [view.q]);

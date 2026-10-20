@@ -19,3 +19,12 @@ describe('health function', () => {
     expect(body.apiKeyConfigured).toBe(false);
   });
 });
+
+describe('health passwordGate', () => {
+  it('agrees with the gate: a whitespace-only APP_PASSWORD is off', async () => {
+    vi.stubEnv('APP_PASSWORD', '   ');
+    expect(((await (await health()).json()) as { passwordGate: boolean }).passwordGate).toBe(false);
+    vi.stubEnv('APP_PASSWORD', ' secret ');
+    expect(((await (await health()).json()) as { passwordGate: boolean }).passwordGate).toBe(true);
+  });
+});

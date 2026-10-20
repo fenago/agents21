@@ -40,9 +40,17 @@ export type CheckPasswordOptions = {
  * undefined when the request may proceed. A wrong (not missing) password is answered
  * after FAILED_PASSWORD_DELAY_MS.
  */
+/**
+ * The configured APP_PASSWORD, trimmed (browsers strip leading/trailing whitespace from
+ * header values, so the supplied password arrives trimmed). Undefined when unset or
+ * whitespace-only, which turns the gate off. Shared with /api/health so both agree.
+ */
+export function configuredPassword(raw: string | undefined = process.env.APP_PASSWORD): string | undefined {
+  return raw?.trim() || undefined;
+}
+
 export async function checkPassword(req: Request, opts: CheckPasswordOptions = {}): Promise<Response | undefined> {
-  // Trim: browsers strip leading/trailing whitespace from header values, so the supplied password arrives trimmed.
-  const expected = ('expected' in opts ? opts.expected : process.env.APP_PASSWORD)?.trim();
+  const expected = configuredPassword('expected' in opts ? opts.expected : process.env.APP_PASSWORD);
   if (!expected) return undefined;
   const supplied = req.headers.get(PASSWORD_HEADER);
   if (supplied !== null && passwordMatches(supplied, expected)) return undefined;
