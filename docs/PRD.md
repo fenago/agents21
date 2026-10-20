@@ -153,7 +153,7 @@ Netlify Functions  ──(x-api-key from env)──►  api.scrapecreators.com
 
 ### 7.1 Stack
 - **Frontend:** Vite + React + TypeScript, styled with Tailwind CSS. Static build output to `dist/`.
-- **Backend:** Netlify Functions (TypeScript, Node 20), served under `/api/*` via redirects in `netlify.toml`.
+- **Backend:** Netlify Functions (TypeScript, Node 22), served under `/api/*` via the redirect in `netlify.toml`. Functions do not set `config.path`; the file name is the route (`netlify/functions/search.ts` → `/api/search`).
 - **Cache:** Netlify Blobs (key/value storage).
 - **Tests:** Vitest for adapters and normalizers, using recorded JSON fixtures. Playwright smoke test of the UI against mocked functions.
 
