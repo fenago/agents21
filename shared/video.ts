@@ -29,7 +29,11 @@ export type Video = {
   durationSec?: number;
 };
 
-export type PlatformError = { platform: Platform; message: string };
+/**
+ * `message` is safe to show to users. `code` is a stable machine-readable reason
+ * (e.g. `out_of_credits`, `timeout`) so the UI can decide whether to offer a retry.
+ */
+export type PlatformError = { platform: Platform; message: string; code?: string };
 
 export type VideoListResponse = {
   videos: Video[];

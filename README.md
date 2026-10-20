@@ -36,6 +36,38 @@ npx netlify dev      # frontend + functions, reads .env
 
 Copy `.env.example` to `.env` for local secrets. `.env` is gitignored.
 
+## API
+
+All endpoints are `GET` only (anything else returns `405`) and live under `/api/*`, which `netlify.toml` redirects to `/.netlify/functions/:splat`. When `APP_PASSWORD` is set, `trending`, `search` and `credits` require the header `x-app-password: <password>` and otherwise return `401 { "error": "unauthorized" }`. `health` is always public.
+
+| Endpoint | Params | Server cache |
+|---|---|---|
+| `GET /api/trending` | `platforms` (optional, comma list of `tiktok,instagram,youtube`, default all), `region` (optional, 2 letters, default `US`) | 15 min per platform |
+| `GET /api/search` | `q` (required, 1–100 chars; a leading `#` means hashtag search), `platforms`, `window` (`today`, `week`, `month`, `all`; default `all`), `region`, `cursor_<platform>` (load more) | 30 min per platform and page |
+| `GET /api/credits` | none | 10 min |
+| `GET /api/health` | none | none |
+
+**Response for `trending` and `search`** (`VideoListResponse` in `shared/video.ts`):
+
+```json
+{
+  "videos": [ { "platform": "tiktok", "id": "…", "url": "https://…", "thumbnail": "https://…", "title": "…",
+                "author": { "handle": "…" }, "stats": { "views": 123 }, "postedAt": "2026-10-20T12:00:00.000Z" } ],
+  "cursors": { "tiktok": 20, "youtube": "EpcDEgRjYXRz…" },
+  "errors":  [ { "platform": "instagram", "code": "out_of_credits", "message": "Out of Scrape Creators credits" } ]
+}
+```
+
+- Videos are interleaved round-robin across platforms (one from each in turn). Sorting is done in the browser.
+- If one platform fails, the request still returns `200` with that platform listed in `errors`. If every platform fails because the API key is missing, the response is `500 { "error": "server_not_configured" }`.
+- Every `url`, `thumbnail` and author link in a response is `https:`. Videos with an unsafe `url` are dropped.
+
+**Load more (search).** Send the same `q`/`platforms`/`window`/`region` again and add one `cursor_<platform>` param for each entry in the previous response's `cursors`, for example `/api/search?q=cats&cursor_tiktok=20&cursor_youtube=EpcD…`. When any cursor is present, only the platforms that have a cursor are queried. A platform missing from `cursors` has no more pages. The Instagram cursor is a page number from 2 to 11; the others are at most 2000 characters.
+
+**Credits.** `GET /api/credits` returns `{ "credits": 1234 }`, or `{ "credits": null }` if the balance can't be read. It returns `502 { "error": "credits_unavailable" }` if Scrape Creators is down. The vendor lists this call at 1 credit, which is why it is cached.
+
+**Errors.** Invalid input returns `400 { "error": "invalid_parameter", "field": "q", "message": "…" }`. Error responses are sent with `Cache-Control: no-store`, and so is any `200` that includes platform errors. Fully successful responses use `private, max-age=60`.
+
 ## Scripts
 
 | Command | What it does |
@@ -52,6 +84,7 @@ Copy `.env.example` to `.env` for local secrets. `.env` is gitignored.
 src/                 React app (Vite + Tailwind)
 shared/              Types shared by app and functions (Video model)
 netlify/functions/   Server-side API (/api/*), the only place the API key is used
+  lib/               Shared code (adapters, cache, validation, password gate); never deployed as a function
 tests/               Vitest tests
 docs/PRD.md          Product requirements
 ```
