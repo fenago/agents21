@@ -47,7 +47,7 @@ Replace `https://<site>.netlify.app` with your site's URL. It is shown at the to
 
    ```bash
    TRENDSCOUT_PASSWORD='<APP_PASSWORD>' npm run smoke -- https://<site>.netlify.app
-   # or: node scripts/smoke.mjs https://<site>.netlify.app --password=<APP_PASSWORD>
+   # --password=<APP_PASSWORD> also works, but it lands in your shell history; prefer the env var
    ```
 
    The script checks the static page and its security headers, `/api/health`, that the API answers `401` without a password, `/api/trending`, one `/api/search?q=cats` and `/api/credits`. It prints a PASS/WARN/FAIL table with per-platform video counts and errors, then a field-coverage table for step 4 below. It never prints the password. **It spends roughly 3–7 Scrape Creators credits**, or fewer if those results are already cached. Exit code `1` means at least one FAIL. A WARN (for example, one platform failing) does not fail the run.

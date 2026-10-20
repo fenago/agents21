@@ -3,6 +3,7 @@
 //
 //   node scripts/smoke.mjs https://<site>.netlify.app [--password=<APP_PASSWORD>]
 //   npm run smoke -- https://<site>.netlify.app --password=<APP_PASSWORD>
+// Prefer TRENDSCOUT_PASSWORD=... over --password: command-line args end up in shell history and `ps`.
 //
 // The password can also come from the TRENDSCOUT_PASSWORD env var (keeps it out of shell
 // history). It is only ever sent in the x-app-password header and is never printed.
@@ -56,7 +57,11 @@ function parseArgs(argv) {
   if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) {
     usage('site URL must start with https:// (http:// is allowed for localhost only)');
   }
-  if (password !== undefined && password.trim() === '') password = undefined;
+  if (password !== undefined) password = password.trim() || undefined;
+  // Printable ASCII only: anything else can make fetch throw an error that echoes the header value.
+  if (password !== undefined && !/^[\x20-\x7E]+$/.test(password)) {
+    usage('password must be printable ASCII (no line breaks, emoji or non-Latin characters)');
+  }
   return { origin: url.origin, password };
 }
 
@@ -89,7 +94,8 @@ async function get(path, { withPassword = true } = {}) {
 
 function describeFailure(err) {
   if (err?.name === 'TimeoutError') return `no response within ${REQUEST_TIMEOUT_MS / 1000}s`;
-  return `request failed: ${err?.cause?.code ?? err?.message ?? String(err)}`;
+  // Never echo err.message: it can contain request header values (the password).
+  return `request failed: ${err?.cause?.code ?? err?.name ?? 'unknown error'}`;
 }
 
 function bodyHint(r) {
